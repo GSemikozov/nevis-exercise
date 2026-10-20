@@ -27,10 +27,18 @@
   --surface-avatar: rgb(var(--ink) / 0.08);
   --focus-ring: rgb(var(--ink));
 
-  /* Chart series. The first three are the design's channel colours. */
+  /*
+   * Chart series, assigned in this fixed order and never cycled. 1–3 are the design's
+   * colours; 4–5 extend them for up to five children and pass the palette checks
+   * (lightness band, chroma, colour-blind separation from their neighbour, 3:1 on white).
+   * A sixth child and beyond fold into "Other". See the README for the audit of 1–3.
+   */
   --chart-1: #b29df8;
   --chart-2: #f4beb4;
   --chart-3: #a75e6e;
+  --chart-4: #4a8fc4;
+  --chart-5: #b8860b;
+  --chart-other: #8a8a86;
 }
 
 @theme inline {
@@ -47,6 +55,9 @@
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-other: var(--chart-other);
 }
 
 @theme {
