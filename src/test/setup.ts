@@ -1,4 +1,8 @@
 import '@testing-library/jest-dom/vitest';
+import { MotionGlobalConfig } from 'motion/react';
+
+// Finish every animation instantly, so leaving rows unmount without waiting 300ms.
+MotionGlobalConfig.skipAnimations = true;
 
 // jsdom lacks layout APIs that popover/list components commonly rely on.
 class ResizeObserverStub {

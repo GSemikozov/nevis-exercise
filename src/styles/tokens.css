@@ -21,6 +21,9 @@
   --outline-line-solid: rgb(var(--ink) / 0.08);
   --outline-line-dotted: rgb(var(--ink) / 0.16);
   --surface-secondary: rgb(var(--ink) / 0.04); /* row hover */
+  /* The same hover tint, flattened onto the card colour, for sticky cells that must hide
+     the content scrolling underneath them. */
+  --surface-secondary-opaque: color-mix(in srgb, rgb(var(--ink)) 4%, var(--background-secondary));
   --surface-avatar: rgb(var(--ink) / 0.08);
   --focus-ring: rgb(var(--ink));
 
@@ -38,6 +41,7 @@
   --color-line: var(--outline-line-solid);
   --color-line-dotted: var(--outline-line-dotted);
   --color-hover: var(--surface-secondary);
+  --color-hover-opaque: var(--surface-secondary-opaque);
   --color-avatar: var(--surface-avatar);
   --color-focus: var(--focus-ring);
   --color-chart-1: var(--chart-1);
