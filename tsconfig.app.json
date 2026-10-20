@@ -24,8 +24,10 @@
     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
 
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@shared/*": ["./shared/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "shared"],
+  "exclude": ["shared/**/*.test.ts"]
 }
