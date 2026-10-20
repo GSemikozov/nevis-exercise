@@ -35,6 +35,19 @@ src/
 
 The dependency rule is one-directional: `app → features → components → lib`. Generic components know nothing about clients, branches or advisors; the feature composes them with domain data. This is a lighter take on Feature-Sliced Design, which would be overkill for a single feature.
 
+## API
+
+| Endpoint | Response |
+|---|---|
+| `GET /api/clients` | `{ data: <client tree>, meta: { periodStart: "2024-02" } }` |
+| `GET /api/health` | `{ status: "ok" }` |
+
+- **Contract:** `shared/clients.schema.ts` (zod/mini) is the single source of truth. The server validates its data at startup and refuses to start on a mismatch; the client validates every response, so a broken payload surfaces as an error state instead of a broken UI.
+- **Period:** the brief's payload carries 12 values per node but no dates ("Feb 2024 to Jan 2025 in the design"). The API makes the period explicit in `meta.periodStart` rather than leaving month labels hard-coded in the UI.
+- **Errors:** RFC 9457 problem details (`application/problem+json`) for every non-2xx response.
+- **Caching:** `ETag` with `304 Not Modified`, `Cache-Control: public, max-age=60, stale-while-revalidate=600`.
+- **Demo switches** to see the loading and error states against the real API: `?delay=<ms>` (up to 5000) and `?fail=<4xx|5xx>`. Both responses are `no-store`.
+
 ## Decisions
 
 Each entry records what was chosen, what else was considered and why.
@@ -54,7 +67,18 @@ Bundle sizes above are gzip deltas over React + React DOM, measured with Vite pr
 
 ## Assumptions and open questions
 
-_In progress — filled in as decisions are made._
+### The data did not add up, so the mock was corrected
+
+Every parent value should equal the sum of its children, and four places in the brief's payload broke that. Each looked like a typo rather than a deliberate gap (such as unassigned clients), so the mock in `server/data/clients.json` was fixed and `server/data/clients.test.ts` now guards the invariant:
+
+| Where | Brief | Served | Reasoning |
+|---|---|---|---|
+| Maria Gutierrez, May 2024 | 22 | 44 | 36 → 39 → 41 → **22** → 46 breaks an otherwise steady trend; 44 also makes Company's May total (301) add up |
+| Branch 1, May 2024 | 156 | 178 | Follows from the fix above |
+| Robert Chen, Aug 2024 | 58 | 56 | The design shows 56, and 56 makes Branch 1's August total (214) add up |
+| Anna Blackwood, New paid, May–Sep 2024 | `1, 2, 1, 0, 2` | `2, 1, 0, 2, 1` | Shifted by one month. "Existing clients" in each month equals the previous month's total, so the channel split can be checked month by month, and the shift is the only change that makes all of it add up |
+
+If parents and children can legitimately differ in real data (clients not yet assigned to an advisor, for example), the UI should show the gap explicitly rather than hide it; the chart already handles that case (see below).
 
 ## What I would do next
 
