@@ -1,0 +1,24 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor / OS
+.cursor/
+# Machine-specific (absolute node path); used by the Claude desktop preview
+.claude/launch.json
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# Logs
+npm-debug.log*
+*.log

@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #0a0e14;
+  --color-foreground: #f4f6f8;
+  --color-card: #11161f;
+  --color-card-foreground: #f4f6f8;
+  --color-popover: #131a24;
+  --color-popover-foreground: #f4f6f8;
+  --color-primary: #2962ef;
+  --color-primary-foreground: #f4f6f8;
+  --color-secondary: #1a212c;
+  --color-secondary-foreground: #f4f6f8;
+  --color-muted: #1a212c;
+  --color-muted-foreground: #8b95a5;
+  --color-accent: #1e293b;
+  --color-accent-foreground: #f4f6f8;
+  /* red-400: ≥4.5:1 on both popover and accent (active row); #ef4444 was 3.9:1 on accent. */
+  --color-destructive: #f87171;
+  --color-border: #1f2733;
+  --color-input: #232d3b;
+  --color-ring: #2962ef;
+  /* Primary tuned for text and state indicators on dark surfaces (primary is 3.4:1 on popover). */
+  --color-highlight: #6b9bff;
+
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+body {
+  @apply bg-background text-foreground font-sans antialiased;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/*
+ * Visible focus for keyboard navigation. Inside @layer base so utilities
+ * (e.g. focus-visible:ring-0) can still override per element.
+ */
+@layer base {
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
