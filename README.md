@@ -61,6 +61,9 @@ Each entry records what was chosen, what else was considered and why.
 | UI primitives | Own, in the shadcn style (`cva` + `cn` + CSS variables) | shadcn/ui | With the table and chart custom, only a few trivial primitives remain; headless primitives come in when overlays do |
 | Animation | motion (`layout` + `AnimatePresence`), lazy-loaded features | View Transitions API, hand-written FLIP, CSS height transitions | Matches Figma's Smart Animate (rows below slide while new rows fade), animates only transform/opacity, interruptible, honours reduced motion |
 | Server state | TanStack Query | Plain `fetch` + effects | Loading, error, retry and request cancellation without hand-rolled state machines |
+| Design tokens | Two layers: semantic CSS variables named after the Figma variables (`--background-primary`, `--content-secondary`, …), mapped to Tailwind with `@theme inline` | Hard-coded Tailwind palette, shadcn token names | Design and code share one vocabulary; a theme is one block of variables. Only the light theme exists in the design, so only that ships |
+| Fonts | Fontsource (self-hosted Inter 400) + `fontaine` (metric-matched fallback) + a 20-line Vite plugin that preloads the latin file | Google Fonts, `unplugin-fonts`, the variable font | Vite's equivalent of `next/font`: no third-party request, one preloaded 24 KB file, no layout shift on swap. The title's Inter Display cut is approximated with Inter's own tracking for 35px instead of a second file (the variable font with optical sizes is 73 KB) |
+| Focus | 2px `outline` in the ink colour | Tailwind `ring` (box-shadow) | Outlines survive Windows High Contrast; box-shadows are removed there |
 | Virtualization | Not yet | TanStack Virtual | The row model is already a flat list, so it can be added once real data volumes are known |
 
 Bundle sizes above are gzip deltas over React + React DOM, measured with Vite production builds of minimal usage of each library.

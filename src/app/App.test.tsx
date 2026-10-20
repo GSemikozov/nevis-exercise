@@ -4,6 +4,6 @@ import { App } from './App';
 describe('App', () => {
   it('renders the page heading', () => {
     render(<App />);
-    expect(screen.getByRole('heading', { name: 'Nevis Exercise' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Clients' })).toBeInTheDocument();
   });
 });
