@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 import { chart, openDashboard, row, tabTo } from './helpers';
 
 test('runs without console errors under the production CSP', async ({ page }) => {
@@ -146,6 +146,59 @@ test.describe('chart on a touch screen', () => {
     await expect(page.locator('div[aria-hidden="true"]', { has: page.locator('ul') })).toHaveCount(
       0
     );
+  });
+});
+
+test.describe('"Show in chart" in the table', () => {
+  const showInChart = (page: Page, name: string) =>
+    page.getByRole('button', { name: `Show ${name} in chart` });
+
+  test('appears on hover and shows the row in the chart', async ({ page }) => {
+    await openDashboard(page);
+    // The chart starts on the company, so that row's button is shown and pressed.
+    await expect(showInChart(page, 'Company')).toHaveCSS('opacity', '1');
+    await expect(showInChart(page, 'Branch 1')).toHaveCSS('opacity', '0');
+
+    await row(page, 'Branch 1').hover();
+    await expect(showInChart(page, 'Branch 1')).toHaveCSS('opacity', '1');
+    await showInChart(page, 'Branch 1').click();
+
+    await expect(chart(page)).toHaveAccessibleName(/^Clients per month for Branch 1, by advisor/);
+    await expect(chart(page)).toBeFocused();
+    await expect(showInChart(page, 'Branch 1')).toHaveAttribute('aria-pressed', 'true');
+    // The table opens the same level, as for a drill in the chart.
+    await expect(row(page, 'Branch 1')).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  test('is reached with Tab from its row only', async ({ page }) => {
+    await openDashboard(page);
+    await tabTo(page, row(page, 'Company'));
+    await page.keyboard.press('ArrowDown');
+    await expect(row(page, 'Branch 1')).toBeFocused();
+
+    await page.keyboard.press('Tab');
+    await expect(showInChart(page, 'Branch 1')).toBeFocused();
+    await expect(showInChart(page, 'Branch 1')).toHaveCSS('opacity', '1');
+    await page.keyboard.press('Shift+Tab');
+    await expect(row(page, 'Branch 1')).toBeFocused();
+
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Enter');
+    await expect(chart(page)).toHaveAccessibleName(/^Clients per month for Branch 1, by advisor/);
+    await expect(chart(page)).toBeFocused();
+  });
+
+  test.describe('on a touch screen', () => {
+    test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+    test('is always visible, since there is no hover', async ({ page }) => {
+      await openDashboard(page);
+      await expect(showInChart(page, 'Branch 1')).toHaveCSS('opacity', '1');
+
+      await showInChart(page, 'Branch 1').tap();
+      await expect(chart(page)).toHaveAccessibleName(/^Clients per month for Branch 1/);
+      await expect(showInChart(page, 'Anna Blackwood')).toHaveCSS('opacity', '1');
+    });
   });
 });
 

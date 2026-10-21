@@ -115,6 +115,12 @@ export function useTreeGrid<T>({
     [resolve, focusStore]
   );
 
+  /** Whether focus is on this row or one of its cells (row actions are tabbable then). */
+  const isCurrentRow = useCallback(
+    (rowId: string) => resolve(focusStore.get())?.rowId === rowId,
+    [resolve, focusStore]
+  );
+
   // When the focused row is collapsed away (by a parent changing `expandedIds`, say), move
   // focus to its nearest visible ancestor, unless the user has already moved elsewhere.
   useEffect(() => {
@@ -209,6 +215,7 @@ export function useTreeGrid<T>({
     getCellProps,
     subscribeFocus: focusStore.subscribe,
     isCurrent,
+    isCurrentRow,
   };
 }
 

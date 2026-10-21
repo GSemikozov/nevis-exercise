@@ -51,7 +51,7 @@ E2E_BASE_URL=https://nevis-exercise.netlify.app npm run test:e2e
 
 ## Accessibility
 
-- **Table:** a WAI-ARIA treegrid. Every row carries `aria-level`, `aria-posinset`, `aria-setsize`, and `aria-expanded` when it has children, so a screen reader announces e.g. "Branch 1, not expanded, level 2, 1 of 3". One tab stop; arrow keys move between rows and cells, Right/Left expand, collapse or go to the parent, Enter/Space toggle, Home/End jump.
+- **Table:** a WAI-ARIA treegrid. Every row carries `aria-level`, `aria-posinset`, `aria-setsize`, and `aria-expanded` when it has children, so a screen reader announces e.g. "Branch 1, not expanded, level 2, 1 of 3". One tab stop; arrow keys move between rows and cells, Right/Left expand, collapse or go to the parent, Enter/Space toggle, Home/End jump. A row's "Show in chart" button is reached with Tab from that row (the APG pattern for widgets inside a treegrid row) and is out of the Tab order everywhere else, so the grid stays one stop; it says which row the chart shows with `aria-pressed`.
 - **Chart:** the SVG is hidden from assistive technology. The chart region is one tab stop named after its scope ("Clients per month for Company, by branch, Feb 2024 to Jan 2025"); arrow keys step through months, each read out through a live region and shown in a tooltip. Drilling is available as legend buttons. The table is the full text alternative.
 - **Chart on touch screens:** there is no hover, so a tap reads a month (a horizontal drag moves along months, a vertical swipe still scrolls) and the tooltip stays until you touch elsewhere. A tap never drills, so reading a value cannot accidentally change the view; drilling stays on the legend buttons, which show it with a chevron. The tooltip sits beside the selected column, never over it, and inside the chart.
 - **Motion:** honours "reduce motion" (no sliding, opacity only). **Contrast:** text passes AA; see "Colours" below for the chart. **Forced colours:** focus uses outlines, which survive Windows High Contrast.
@@ -136,7 +136,7 @@ So the chart shows **one scope at a time, stacked by the level beneath it**: the
 
 - **Drill down** by clicking a segment or a legend entry; legend entries are buttons, so it works from the keyboard. Only entries with a level beneath them are drillable, marked with a chevron.
 - **Go back** with the breadcrumb above the chart.
-- **The table follows**: drilling the chart expands the table down to the same node. The reverse is deliberately not true: expanding rows to look around should not repaint the chart under the reader.
+- **The table follows**: drilling the chart expands the table down to the same node. The reverse is explicit rather than automatic: expanding rows to look around does not repaint the chart under the reader (and the row click already expands, per the design), so rows with a level beneath get a separate "Show in chart" button instead.
 - **Non-uniform nesting:** a scope's children with nothing beneath them (Branch 2 and 3, James Walker) are plain legend entries. If children ever add up to less than their parent, the gap is drawn as an "Other" segment so the bar still matches the table; beyond five children, the rest fold into "Other" too, rather than generating colours nobody can tell apart.
 
 ### Smaller calls

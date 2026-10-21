@@ -9,6 +9,7 @@ import {
   TreeGridExpandIcon,
   TreeGridHeader,
   TreeGridRow,
+  TreeGridRowAction,
   TreeGridRowHeader,
 } from './TreeGrid';
 import { type UseTreeGridOptions, useTreeGrid } from './use-tree-grid';
@@ -43,8 +44,12 @@ const getChildren = (node: Node) => node.children ?? [];
 
 function Example({
   onRender,
+  onAction,
   ...props
-}: Partial<UseTreeGridOptions<Node>> & { onRender?: () => void }) {
+}: Partial<UseTreeGridOptions<Node>> & {
+  onRender?: () => void;
+  onAction?: (id: string) => void;
+}) {
   const grid = useTreeGrid({ items: tree, getId, getChildren, columnCount: 3, ...props });
   onRender?.();
   return (
@@ -60,6 +65,11 @@ function Example({
             <TreeGridRowHeader>
               <TreeGridExpandIcon />
               {row.item.name}
+              {onAction && row.hasChildren && (
+                <TreeGridRowAction onClick={() => onAction(row.id)}>
+                  {`Open ${row.item.name}`}
+                </TreeGridRowAction>
+              )}
             </TreeGridRowHeader>
             <TreeGridCell colIndex={1}>{`${row.item.name} Jan`}</TreeGridCell>
             <TreeGridCell colIndex={2}>{`${row.item.name} Feb`}</TreeGridCell>
@@ -251,5 +261,53 @@ describe('TreeGrid controlled state', () => {
 
     rerender(<Example expandedIds={new Set(['company'])} />);
     await waitFor(() => expect(row('Branch 1')).toHaveFocus());
+  });
+});
+
+describe('TreeGrid row actions (APG: Tab reaches widgets in the focused row)', () => {
+  const action = (name: string) => screen.getByRole('button', { name: `Open ${name}` });
+
+  it('keeps actions out of the tab order except in the focused row', async () => {
+    const { user } = renderWithProviders(
+      <Example defaultExpandedIds={['company']} onAction={vi.fn()} />
+    );
+    expect(action('Company')).toHaveAttribute('tabindex', '0'); // first row is current
+    expect(action('Branch 1')).toHaveAttribute('tabindex', '-1');
+
+    await user.tab();
+    await user.keyboard('{ArrowDown}');
+    expect(action('Company')).toHaveAttribute('tabindex', '-1');
+    expect(action('Branch 1')).toHaveAttribute('tabindex', '0');
+  });
+
+  it('reaches the action with Tab from its row and back with Shift+Tab', async () => {
+    const { user } = renderWithProviders(
+      <Example defaultExpandedIds={['company']} onAction={vi.fn()} />
+    );
+    await user.tab();
+    await user.keyboard('{ArrowDown}');
+    expect(row('Branch 1')).toHaveFocus();
+
+    await user.tab();
+    expect(action('Branch 1')).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(row('Branch 1')).toHaveFocus();
+  });
+
+  it('runs the action with Enter or a click without toggling the row', async () => {
+    const onAction = vi.fn();
+    const { user } = renderWithProviders(
+      <Example defaultExpandedIds={['company']} onAction={onAction} />
+    );
+    await user.tab();
+    await user.keyboard('{ArrowDown}');
+    await user.tab();
+
+    await user.keyboard('{Enter}');
+    await user.click(action('Branch 1'));
+
+    expect(onAction).toHaveBeenNthCalledWith(1, 'b1');
+    expect(onAction).toHaveBeenNthCalledWith(2, 'b1');
+    expect(row('Branch 1')).toHaveAttribute('aria-expanded', 'false');
   });
 });

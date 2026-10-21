@@ -9,6 +9,7 @@ import {
   type Ref,
   use,
   useId,
+  useSyncExternalStore,
 } from 'react';
 import { cn } from '@/lib/cn';
 import { figmaTransition } from '@/lib/motion';
@@ -240,6 +241,44 @@ export function TreeGridCell({ colIndex, className, ...props }: TreeGridCellProp
       tabIndex={tabIndex}
       ref={ref}
       className={cn('rounded-sm outline-offset-2', className)}
+      {...props}
+    />
+  );
+}
+
+/**
+ * A button inside a row, following the APG treegrid: it is reachable with Tab only while
+ * focus is on its row (or one of the row's cells), so the grid stays a single tab stop.
+ * Activating it neither toggles the row nor triggers the grid's keyboard handling.
+ *
+ * Rows and cells are named from their content, which includes this button's label; give
+ * the cell holding it an `aria-label` with its visible text to keep the label out.
+ */
+export function TreeGridRowAction({
+  className,
+  onClick,
+  onKeyDown,
+  type = 'button',
+  ...props
+}: ComponentProps<'button'>) {
+  const grid = useGrid();
+  const row = useRow();
+  const inCurrentRow = useSyncExternalStore(grid.subscribeFocus, () => grid.isCurrentRow(row.id));
+
+  return (
+    <button
+      type={type}
+      tabIndex={inCurrentRow ? 0 : -1}
+      onClick={(event) => {
+        event.stopPropagation(); // the row's own click toggles it
+        onClick?.(event);
+      }}
+      onKeyDown={(event) => {
+        // Enter and Space belong to the button, not to the row it sits in.
+        if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
+        onKeyDown?.(event);
+      }}
+      className={cn('shrink-0 rounded-sm', className)}
       {...props}
     />
   );

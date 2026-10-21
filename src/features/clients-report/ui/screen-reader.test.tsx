@@ -53,6 +53,16 @@ describe('the table, as a screen reader hears it', () => {
     expect(log).toContain('columnheader, Feb 2024');
   });
 
+  it('keeps "Show in chart" out of row names but announces it as a toggle', async () => {
+    renderWithProviders(<ClientsReport />);
+    const log = await readThrough(await screen.findByRole('treegrid'));
+
+    expect(rowPhrase(log, 'Branch 1')).toMatch(/^row, Branch 1 147 /);
+    expect(log).toContain('rowheader, Branch 1, column index 1');
+    expect(log).toContain('button, Show Branch 1 in chart, not pressed');
+    expect(log).toContain('button, Show Company in chart, pressed');
+  });
+
   it('announces the level beneath once a row is expanded', async () => {
     const { user } = renderWithProviders(<ClientsReport />);
     await user.click(await screen.findByRole('row', { name: /^Branch 1 / }));

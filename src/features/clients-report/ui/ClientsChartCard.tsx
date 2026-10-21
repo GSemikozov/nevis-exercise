@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef } from 'react';
+import { type RefObject, useId, useMemo } from 'react';
 import { ChartLegend } from '@/components/stacked-bar-chart/ChartLegend';
 import { StackedBarChart } from '@/components/stacked-bar-chart/StackedBarChart';
 import { formatCount } from '@/lib/format';
@@ -11,28 +11,31 @@ interface ClientsChartCardProps {
   /** From the root down to `scope`. */
   path: readonly ReportNode[];
   months: readonly Month[];
+  /** Changes the scope and moves focus to the chart (see ClientsDashboard). */
   onScopeChange: (id: string) => void;
+  /** The focusable chart region. */
+  chartRef: RefObject<HTMLDivElement | null>;
 }
 
 /**
  * The chart for the current scope, split by the level beneath it. Drilling happens from
- * a segment, a legend entry or the breadcrumbs, and always ends with focus on the chart,
- * whose label then announces the new scope.
+ * a segment, a legend entry, the breadcrumbs or a table row's "Show in chart", and always
+ * ends with focus on the chart, whose label then announces the new scope.
  */
-export function ClientsChartCard({ scope, path, months, onScopeChange }: ClientsChartCardProps) {
+export function ClientsChartCard({
+  scope,
+  path,
+  months,
+  onScopeChange: changeScope,
+  chartRef,
+}: ClientsChartCardProps) {
   const headingId = useId();
-  const chartRef = useRef<HTMLDivElement | null>(null);
   const { series, drillableIds } = useMemo(() => chartSeriesFor(scope), [scope]);
   const isDrillable = (id: string) => drillableIds.has(id);
 
   const splitBy = scope.children.length > 0 ? `by ${childLevelLabel[scope.kind]}` : undefined;
   const period = `${months[0]?.label} to ${months.at(-1)?.label}`;
   const chartLabel = `Clients per month for ${scope.name}${splitBy ? `, ${splitBy}` : ''}, ${period}`;
-
-  const changeScope = (id: string) => {
-    onScopeChange(id);
-    chartRef.current?.focus();
-  };
 
   return (
     <section

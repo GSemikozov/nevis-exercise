@@ -6,11 +6,11 @@ The brief asks for two things explicitly: expanding and collapsing rows must wor
 
 | Layer | Tool | What it covers |
 |---|---|---|
-| Keyboard model | Vitest + Testing Library (`src/components/tree-grid/TreeGrid.test.tsx`) | The WAI-ARIA APG treegrid keys: arrows across rows and cells, Right/Left to expand, collapse or move to the parent, Enter/Space, Home/End; a single tab stop; focus moving to the nearest visible ancestor when its row is collapsed away |
+| Keyboard model | Vitest + Testing Library (`src/components/tree-grid/TreeGrid.test.tsx`) | The WAI-ARIA APG treegrid keys: arrows across rows and cells, Right/Left to expand, collapse or move to the parent, Enter/Space, Home/End; a single tab stop; focus moving to the nearest visible ancestor when its row is collapsed away; a row's action button reachable with Tab only from its own row, activating without toggling the row |
 | Hierarchy for AT | Vitest + Testing Library | `aria-level`, `aria-posinset`, `aria-setsize`, `aria-expanded` (absent on leaves), row and column headers |
 | What a screen reader announces | `@guidepup/virtual-screen-reader` (`screen-reader.test.tsx`) | The phrases a screen reader builds from the accessibility tree, e.g. `row, Branch 1 …, not expanded, level 2, position 1, set size 3` |
 | WCAG 2.2 AA rules | axe-core in Chromium and WebKit (`e2e/a11y.spec.ts`) | Default, fully expanded and drilled, chart tooltip open from the keyboard, loading, error, and 375px |
-| Real keyboard | Playwright (`e2e/dashboard.spec.ts`) | Tab order and keyboard-only expand/collapse in real browsers |
+| Real keyboard | Playwright (`e2e/dashboard.spec.ts`) | Tab order, keyboard-only expand/collapse, and "Show in chart" from the keyboard in real browsers |
 | Motion | Playwright with `reducedMotion: 'reduce'` | Rows appear without sliding |
 | Reflow | Playwright at 375px (`e2e/responsive.spec.ts`) | No page overflow when fully expanded; the table scrolls inside its card with names pinned |
 
@@ -25,8 +25,9 @@ Run against `npm run build && npm start` (http://localhost:3000), or the deploye
 - [ ] Tab order: chart → drillable legend entries → table (one stop) → nothing is skipped or trapped. In Safari, buttons are only in the Tab order with Full Keyboard Access on (System Settings → Keyboard).
 - [ ] Focus is always visible, including on the chart region and inside the table.
 - [ ] Table: every key in the treegrid model works, and a focused cell scrolls into view clear of the pinned name column.
+- [ ] Table: on a row with a level beneath, Tab reaches its "Show in chart" button (visible once the row has focus) and Shift+Tab returns to the row; on any other row, Tab leaves the table.
 - [ ] Chart: arrow keys step through months and the tooltip follows; Escape closes it.
-- [ ] Drilling from a legend entry or a breadcrumb moves focus to the chart.
+- [ ] Drilling from a legend entry or a breadcrumb, or "Show in chart" in the table, moves focus to the chart.
 
 ### VoiceOver + Safari (macOS)
 
@@ -34,6 +35,7 @@ Run against `npm run build && npm start` (http://localhost:3000), or the deploye
 - [ ] Expanding a row announces the new state; the new rows are reachable straight away.
 - [ ] The chart is announced as a group with its scope ("Clients per month for Company, by branch, …"); arrow keys read each month through the live region.
 - [ ] Drilling announces the new scope; the error alert is announced when it appears.
+- [ ] "Show in chart" is announced as a toggle button with its row's name ("Show Branch 1 in chart, toggle button, not selected"), and as selected on the row the chart shows.
 
 ### NVDA + Firefox or Chrome (Windows)
 

@@ -115,6 +115,42 @@ describe('ClientsReport', () => {
     );
   });
 
+  it('shows a table row in the chart from its "Show in chart" button', async () => {
+    const { user } = await renderLoaded();
+    const showBranch = () => screen.getByRole('button', { name: 'Show Branch 1 in chart' });
+    // Only rows with a level beneath can be shown; the chart starts on the company.
+    expect(screen.getByRole('button', { name: 'Show Company in chart' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(showBranch()).toHaveAttribute('aria-pressed', 'false');
+    expect(
+      screen.queryByRole('button', { name: 'Show Branch 2 in chart' })
+    ).not.toBeInTheDocument();
+
+    await user.click(showBranch());
+
+    expect(chart()).toHaveAccessibleName(
+      'Clients per month for Branch 1, by advisor, Feb 2024 to Jan 2025'
+    );
+    expect(chart()).toHaveFocus();
+    expect(showBranch()).toHaveAttribute('aria-pressed', 'true');
+    // Like a drill in the chart, it opens the same level in the table.
+    expect(row('Branch 1')).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('reaches "Show in chart" from the keyboard without toggling the row', async () => {
+    const { user } = await renderLoaded();
+    row('Branch 1').focus();
+
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Show Branch 1 in chart' })).toHaveFocus();
+    await user.keyboard('{Enter}');
+
+    expect(chart()).toHaveAccessibleName(/^Clients per month for Branch 1, by advisor/);
+    expect(chart()).toHaveFocus();
+  });
+
   it('explains a failed request and recovers on retry', async () => {
     apiServer.use(
       http.get('*/api/v1/clients', () =>

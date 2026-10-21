@@ -1,3 +1,4 @@
+import { ChartColumnStacked } from 'lucide-react';
 import { useId, useMemo } from 'react';
 import {
   TreeGrid,
@@ -8,10 +9,12 @@ import {
   TreeGridExpandIcon,
   TreeGridHeader,
   TreeGridRow,
+  TreeGridRowAction,
   TreeGridRowHeader,
 } from '@/components/tree-grid/TreeGrid';
 import { useTreeGrid } from '@/components/tree-grid/use-tree-grid';
 import { Avatar } from '@/components/ui/avatar';
+import { cn } from '@/lib/cn';
 import { formatCount } from '@/lib/format';
 import { getChildren, getId, type Month, type ReportNode } from '../model/report';
 
@@ -27,6 +30,9 @@ interface ClientsTableCardProps {
   months: readonly Month[];
   expandedIds: ReadonlySet<string>;
   onExpandedChange: (expandedIds: ReadonlySet<string>) => void;
+  /** The node the chart currently shows; its row's button is marked as pressed. */
+  chartScopeId: string;
+  onShowInChart: (id: string) => void;
 }
 
 export function ClientsTableCard({
@@ -34,6 +40,8 @@ export function ClientsTableCard({
   months,
   expandedIds,
   onExpandedChange,
+  chartScopeId,
+  onShowInChart,
 }: ClientsTableCardProps) {
   const headingId = useId();
   const items = useMemo(() => [root], [root]);
@@ -69,10 +77,19 @@ export function ClientsTableCard({
         <TreeGridBody>
           {grid.rows.map((row) => (
             <TreeGridRow key={row.id} row={row}>
-              <TreeGridRowHeader>
+              {/* Named after the visible name only, so the button's label stays out of the
+                  row's and the cell's names ("Branch 1 147 …", not "Branch 1 Show …"). */}
+              <TreeGridRowHeader aria-label={row.item.name}>
                 <TreeGridExpandIcon />
                 {row.item.kind === 'employee' && <Avatar name={row.item.name} />}
                 <span className="truncate">{row.item.name}</span>
+                {row.hasChildren && (
+                  <ShowInChartButton
+                    name={row.item.name}
+                    isShown={row.id === chartScopeId}
+                    onShow={() => onShowInChart(row.id)}
+                  />
+                )}
               </TreeGridRowHeader>
               {row.item.values.map((value, index) => (
                 <TreeGridCell
@@ -88,5 +105,40 @@ export function ClientsTableCard({
         </TreeGridBody>
       </TreeGrid>
     </section>
+  );
+}
+
+/**
+ * Opens a row's breakdown in the chart. Only rows with a level beneath have one (as in
+ * the chart's own drill-down). It appears on hover and focus so it does not clutter the
+ * table, and is always visible on touch screens (no hover) and on the row the chart
+ * currently shows, marked as pressed.
+ */
+function ShowInChartButton({
+  name,
+  isShown,
+  onShow,
+}: {
+  name: string;
+  isShown: boolean;
+  onShow: () => void;
+}) {
+  const label = `Show ${name} in chart`;
+  return (
+    <TreeGridRowAction
+      aria-label={label}
+      aria-pressed={isShown}
+      title={label}
+      onClick={onShow}
+      className={cn(
+        'ml-auto grid size-6 place-items-center text-content-secondary hover:bg-hover hover:text-content',
+        'transition-opacity duration-300 ease-figma motion-reduce:transition-none',
+        isShown
+          ? 'text-content opacity-100'
+          : 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100'
+      )}
+    >
+      <ChartColumnStacked aria-hidden="true" strokeWidth={1.5} className="size-4" />
+    </TreeGridRowAction>
   );
 }
