@@ -6,14 +6,22 @@ import { ApiError, ContractError } from '../api/clients-api';
 import { useClientsReport } from '../api/use-clients-report';
 
 /*
- * The dashboard (tree grid, chart, animation runtime) is its own chunk. The import starts
- * when this module loads, so the code downloads while the data request is in flight: off
- * the critical path, without a request waterfall.
+ * The dashboard (tree grid, chart, animation runtime) is its own chunk. Its download
+ * starts when this module loads, so it runs while the data request is in flight: off the
+ * critical path, without a request waterfall.
+ *
+ * That early request is only a prefetch: if it fails, nothing keeps its rejection. The
+ * lazy component makes its own request (served from cache when the prefetch worked) and
+ * tries once more before giving up, because React.lazy remembers a failure for good.
+ * A chunk that no longer exists after a deploy is handled in app/stale-build.ts.
  */
-const dashboardModule = import('./ClientsDashboard');
-const ClientsDashboard = lazy(() =>
-  dashboardModule.then((module) => ({ default: module.ClientsDashboard }))
-);
+const loadDashboard = () => import('./ClientsDashboard');
+loadDashboard().catch(() => {});
+
+const ClientsDashboard = lazy(async () => {
+  const module = await loadDashboard().catch(loadDashboard);
+  return { default: module.ClientsDashboard };
+});
 
 export function ClientsReport() {
   const query = useClientsReport();

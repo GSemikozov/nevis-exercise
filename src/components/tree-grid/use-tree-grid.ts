@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 import { flattenVisible, parentMap, type TreeAccessors, type TreeGridRowModel } from './flatten';
 
@@ -83,37 +84,55 @@ export function useTreeGrid<T>({
   );
   const rowIndex = useMemo(() => new Map(rows.map((row, index) => [row.id, index])), [rows]);
 
-  // Roving focus. `focus` is where the user last was; `current` is the visible
-  // position it resolves to (a collapsed-away row resolves to its nearest visible
-  // ancestor, nothing yet resolves to the first row).
-  const [focus, setFocus] = useState<FocusPosition | null>(null);
-  const current = useMemo((): FocusPosition | null => {
-    let rowId = focus?.rowId;
-    while (rowId != null && !rowIndex.has(rowId)) rowId = parents.get(rowId) ?? undefined;
-    if (rowId != null && focus) return { rowId, col: rowId === focus.rowId ? focus.col : ROW };
-    const first = rows[0];
-    return first ? { rowId: first.id, col: ROW } : null;
-  }, [focus, rowIndex, parents, rows]);
-
+  /*
+   * Roving focus. Where the user last was lives in a small store outside React state, so
+   * moving focus re-renders only the element losing the tab stop and the one gaining it
+   * (see useTabIndex), not every row: rows are layout-animated, so each re-render would
+   * also cost a layout measurement.
+   */
+  const [focusStore] = useState(createFocusStore);
   const gridRef = useRef<HTMLElement | null>(null);
   const elements = useRef(new Map<string, HTMLElement>());
-  const focusRequested = useRef(false);
-  const currentKey = current ? keyOf(current) : null;
 
-  // Move DOM focus after a keyboard move, or when the focused row was collapsed away.
+  /** A visible position for `focus`: a collapsed-away row resolves to its nearest
+   * visible ancestor, no focus yet to the first row. */
+  const resolve = useCallback(
+    (focus: FocusPosition | null): FocusPosition | null => {
+      let rowId = focus?.rowId;
+      while (rowId != null && !rowIndex.has(rowId)) rowId = parents.get(rowId) ?? undefined;
+      if (rowId != null && focus) return { rowId, col: rowId === focus.rowId ? focus.col : ROW };
+      const first = rows[0];
+      return first ? { rowId: first.id, col: ROW } : null;
+    },
+    [rowIndex, parents, rows]
+  );
+
+  const isCurrent = useCallback(
+    (rowId: string, col: number) => {
+      const current = resolve(focusStore.get());
+      return current?.rowId === rowId && current.col === col;
+    },
+    [resolve, focusStore]
+  );
+
+  // When the focused row is collapsed away (by a parent changing `expandedIds`, say), move
+  // focus to its nearest visible ancestor, unless the user has already moved elsewhere.
   useEffect(() => {
-    if (!currentKey) return;
+    const focus = focusStore.get();
+    const resolved = resolve(focus);
+    if (!focus || !resolved || keyOf(focus) === keyOf(resolved)) return;
+    focusStore.set(resolved);
     const active = document.activeElement;
-    const lostFocus = active === document.body || gridRef.current?.contains(active);
-    if (focusRequested.current || (focus && keyOf(focus) !== currentKey && lostFocus)) {
-      focusRequested.current = false;
-      elements.current.get(currentKey)?.focus();
+    if (active === document.body || gridRef.current?.contains(active)) {
+      elements.current.get(keyOf(resolved))?.focus();
     }
-  }, [currentKey, focus]);
+  }, [resolve, focusStore]);
 
+  // Elements can take focus with tabIndex -1, so a move focuses the target directly; the
+  // store update then hands it the tab stop.
   const moveFocus = (next: FocusPosition) => {
-    focusRequested.current = true;
-    setFocus(next);
+    focusStore.set(next);
+    elements.current.get(keyOf(next))?.focus();
   };
 
   const register =
@@ -124,6 +143,7 @@ export function useTreeGrid<T>({
     };
 
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    const current = resolve(focusStore.get());
     if (!current) return;
     const index = rowIndex.get(current.rowId);
     const row = index === undefined ? undefined : rows[index];
@@ -144,8 +164,6 @@ export function useTreeGrid<T>({
     if (handled) event.preventDefault();
   };
 
-  const isCurrent = (rowId: string, col: number) => current?.rowId === rowId && current.col === col;
-
   const getGridProps = () => ({
     role: 'treegrid' as const,
     'aria-colcount': columnCount,
@@ -155,16 +173,17 @@ export function useTreeGrid<T>({
     onKeyDown,
   });
 
+  // Prop getters leave out tabIndex: it comes from useTabIndex, so that focus moves do
+  // not re-render whoever spreads these props.
   const getRowProps = (row: TreeGridRowModel<T>) => ({
     role: 'row' as const,
     'aria-level': row.level,
     'aria-posinset': row.posInSet,
     'aria-setsize': row.setSize,
     'aria-expanded': row.hasChildren ? row.isExpanded : undefined,
-    tabIndex: isCurrent(row.id, ROW) ? 0 : -1,
     ref: register(keyOf({ rowId: row.id, col: ROW })),
     onFocus: (event: FocusEvent<HTMLElement>) => {
-      if (event.target === event.currentTarget) setFocus({ rowId: row.id, col: ROW });
+      if (event.target === event.currentTarget) focusStore.set({ rowId: row.id, col: ROW });
     },
     onClick: row.hasChildren ? () => toggle(row.id) : undefined,
   });
@@ -172,10 +191,9 @@ export function useTreeGrid<T>({
   const getCellProps = (row: TreeGridRowModel<T>, col: number) => ({
     role: col === 0 ? ('rowheader' as const) : ('gridcell' as const),
     'aria-colindex': col + 1,
-    tabIndex: isCurrent(row.id, col) ? 0 : -1,
     ref: register(keyOf({ rowId: row.id, col })),
     onFocus: (event: FocusEvent<HTMLElement>) => {
-      if (event.target === event.currentTarget) setFocus({ rowId: row.id, col });
+      if (event.target === event.currentTarget) focusStore.set({ rowId: row.id, col });
     },
   });
 
@@ -189,13 +207,50 @@ export function useTreeGrid<T>({
     getGridProps,
     getRowProps,
     getCellProps,
+    subscribeFocus: focusStore.subscribe,
+    isCurrent,
   };
 }
 
 export type TreeGridApi<T> = ReturnType<typeof useTreeGrid<T>>;
 
+/** Column index meaning "the row itself" rather than one of its cells. */
+export const ROW_FOCUS = ROW;
+
+/**
+ * Roving tabindex for one row (`col` = ROW_FOCUS) or cell: 0 for the single tab stop,
+ * -1 otherwise. The caller re-renders only when this element gains or loses the stop.
+ */
+export function useTabIndex(
+  grid: Pick<TreeGridApi<unknown>, 'subscribeFocus' | 'isCurrent'>,
+  rowId: string,
+  col: number
+): 0 | -1 {
+  const isCurrent = useSyncExternalStore(grid.subscribeFocus, () => grid.isCurrent(rowId, col));
+  return isCurrent ? 0 : -1;
+}
+
 function keyOf({ rowId, col }: FocusPosition) {
   return `${rowId}:${col}`;
+}
+
+function createFocusStore() {
+  let position: FocusPosition | null = null;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => position,
+    set(next: FocusPosition) {
+      if (position && keyOf(position) === keyOf(next)) return;
+      position = next;
+      for (const listener of listeners) listener();
+    },
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
 }
 
 interface KeyContext<T> {

@@ -39,14 +39,15 @@ if (serveClient) {
       xFrameOptions: 'DENY',
     })
   );
-  // Vite fingerprints everything under /assets, so it can be cached forever.
+  // Vite fingerprints everything under /assets, so a file that exists can be cached
+  // forever. A 404 must not be: it would stick at that URL.
   app.use('/assets/*', async (c, next) => {
     await next();
-    c.header('Cache-Control', 'public, max-age=31536000, immutable');
+    if (c.res.ok) c.header('Cache-Control', 'public, max-age=31536000, immutable');
   });
+  // The app has one page (served for `/`), so there is no history-API fallback: an
+  // unknown path, a stale chunk in particular, is a plain 404, as on Netlify.
   app.use('/*', serveStatic({ root: './dist' }));
-  // Single-page app: unknown non-API paths fall back to the shell.
-  app.get('*', serveStatic({ path: './dist/index.html' }));
 }
 
 const server = serve({ fetch: app.fetch, port }, (info) => {

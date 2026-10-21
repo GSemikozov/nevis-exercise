@@ -22,6 +22,24 @@ describe('GET /api/clients', () => {
 
     const second = await app.request('/api/clients', { headers: { 'If-None-Match': tag ?? '' } });
     expect(second.status).toBe(304);
+    expect(second.headers.get('etag')).toBe(tag);
+    expect(second.headers.get('cache-control')).toContain('max-age=60');
+  });
+
+  it('matches weak and listed entity tags too', async () => {
+    const tag = (await app.request('/api/clients')).headers.get('etag') ?? '';
+    const res = await app.request('/api/clients', {
+      headers: { 'If-None-Match': `"stale", W/${tag}` },
+    });
+    expect(res.status).toBe(304);
+  });
+
+  it('ignores the demo switches when they are turned off', async () => {
+    const production = createApp({ demoSwitches: false });
+    const res = await production.request('/api/clients?fail=503&delay=3000');
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toContain('max-age=60');
   });
 
   it('simulates a failure with ?fail as an uncached problem document', async () => {
@@ -43,7 +61,7 @@ describe('GET /api/clients', () => {
   });
 
   it.each([
-    ['delay out of range', '?delay=60000'],
+    ['delay over the 3s cap', '?delay=3001'],
     ['non-numeric fail', '?fail=oops'],
     ['fail outside 4xx/5xx', '?fail=200'],
   ])('rejects %s with 400', async (_, query) => {

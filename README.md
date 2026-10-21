@@ -83,7 +83,8 @@ The dependency rule is one-directional: `app → features → components → lib
 - **Period:** the brief's payload carries 12 values per node but no dates ("Feb 2024 to Jan 2025 in the design"). The API makes the period explicit in `meta.periodStart` rather than leaving month labels hard-coded in the UI.
 - **Errors:** RFC 9457 problem details (`application/problem+json`) for every non-2xx response.
 - **Caching:** `ETag` with `304 Not Modified`, `Cache-Control: public, max-age=60, stale-while-revalidate=600`.
-- **Demo switches** to see the loading and error states against the real API: `?delay=<ms>` (up to 5000) and `?fail=<4xx|5xx>`. Both responses are `no-store`.
+- **Demo switches** to see the loading and error states against the real API: `?delay=<ms>` (up to 3000) and `?fail=<4xx|5xx>`. Both responses are `no-store`. A held response keeps a serverless function busy, so `API_DEMO_SWITCHES=off` turns them off; the public demo keeps them on on purpose, a real production deployment would not.
+- **ETag** is computed once at startup (the payload is static), not by hashing every response.
 
 ## Decisions
 
@@ -102,7 +103,8 @@ Each entry records what was chosen, what else was considered and why.
 | Fonts | Fontsource (self-hosted Inter 400) + `fontaine` (metric-matched fallback) + a 20-line Vite plugin that preloads the latin file | Google Fonts, `unplugin-fonts`, the variable font | Vite's equivalent of `next/font`: no third-party request, one preloaded 24 KB file, no layout shift on swap. The title's Inter Display cut is approximated with Inter's own tracking for 35px instead of a second file (the variable font with optical sizes is 73 KB) |
 | Focus | 2px `outline` in the ink colour | Tailwind `ring` (box-shadow) | Outlines survive Windows High Contrast; box-shadows are removed there |
 | Virtualization | Not yet | TanStack Virtual | The row model is already a flat list, so it can be added once real data volumes are known |
-| Code splitting | The dashboard (tree grid, chart, animation runtime) is a lazy chunk whose download starts when the app loads, in parallel with the data request; motion's animation features load asynchronously | One bundle | Initial JS is 107 KB gzip (React + React DOM alone are ~74 KB); the 13 KB dashboard chunk and 32 KB of animation features are off the critical path without adding a request waterfall |
+| Code splitting | The dashboard (tree grid, chart, animation runtime) is a lazy chunk whose download starts when the app loads, in parallel with the data request; motion's animation features load asynchronously | One bundle | Initial JS is 107 KB gzip (React + React DOM alone are ~74 KB); the 13 KB dashboard chunk and 32 KB of animation features are off the critical path without adding a request waterfall. A failed chunk load is retried once; a chunk that disappeared with a new deploy triggers one reload (at most once a minute) to pick up the new build |
+| Roving focus | Focus position in a small external store read with `useSyncExternalStore`; rows measure layout only when the set of rows changes (`layoutDependency`) | React state in the grid | An arrow key re-renders the two elements trading the tab stop, not every row, and triggers no layout measurement |
 
 Bundle sizes above are gzip deltas over React + React DOM, measured with Vite production builds of minimal usage of each library.
 

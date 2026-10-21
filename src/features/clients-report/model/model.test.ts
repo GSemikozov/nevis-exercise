@@ -1,7 +1,7 @@
 import type { ClientsResponse } from '@shared/clients.schema';
 import clients from '../../../../server/data/clients.json';
 import { chartSeriesFor } from './chart-series';
-import { findNode, type ReportNode, toReport } from './report';
+import { indexNodes, type ReportNode, toReport } from './report';
 
 const response: ClientsResponse = { data: clients, meta: { periodStart: '2024-02' } };
 const report = toReport(response);
@@ -43,10 +43,13 @@ describe('toReport', () => {
     expect(node('James Walker').children).toEqual([]);
   });
 
-  it('finds nodes by id', () => {
+  it('indexes every node by id', () => {
+    const nodes = indexNodes(report.root);
     const anna = node('Anna Blackwood');
-    expect(findNode(report.root, anna.id)).toBe(anna);
-    expect(findNode(report.root, 'missing')).toBeUndefined();
+
+    expect(nodes.size).toBe(12);
+    expect(nodes.get(anna.id)).toBe(anna);
+    expect(nodes.get('missing')).toBeUndefined();
   });
 });
 

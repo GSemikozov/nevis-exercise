@@ -41,8 +41,12 @@ const tree: Node[] = [
 const getId = (node: Node) => node.id;
 const getChildren = (node: Node) => node.children ?? [];
 
-function Example(props: Partial<UseTreeGridOptions<Node>>) {
+function Example({
+  onRender,
+  ...props
+}: Partial<UseTreeGridOptions<Node>> & { onRender?: () => void }) {
   const grid = useTreeGrid({ items: tree, getId, getChildren, columnCount: 3, ...props });
+  onRender?.();
   return (
     <TreeGrid grid={grid} columns="10rem repeat(2, 4rem)" aria-label="Clients">
       <TreeGridHeader>
@@ -193,6 +197,23 @@ describe('TreeGrid keyboard (WAI-ARIA APG treegrid)', () => {
     expect(row('Branch 2')).toHaveFocus();
     await user.keyboard('{Home}');
     expect(row('Company')).toHaveFocus();
+  });
+
+  it('moves focus without re-rendering the grid and its rows', async () => {
+    const onRender = vi.fn();
+    const { user } = renderWithProviders(
+      <Example defaultExpandedIds={['company', 'b1']} onRender={onRender} />
+    );
+    await user.tab();
+    const rendersBefore = onRender.mock.calls.length;
+
+    // Branch 1 row → its header cell → its Jan cell → Anna's Jan cell → back up.
+    await user.keyboard('{ArrowDown}{ArrowRight}{ArrowRight}{ArrowDown}{ArrowUp}');
+    expect(screen.getByRole('gridcell', { name: 'Branch 1 Jan' })).toHaveFocus();
+    // Only the elements gaining and losing the tab stop re-render, not the component
+    // that renders the rows.
+    expect(onRender).toHaveBeenCalledTimes(rendersBefore);
+    expect(screen.getByRole('treegrid').querySelectorAll('[tabindex="0"]')).toHaveLength(1);
   });
 
   it('moves into the cells of a leaf row with Right arrow instead of expanding it', async () => {

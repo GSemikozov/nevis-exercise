@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { parentMap, pathTo } from '@/components/tree-grid/flatten';
-import { type ClientsReport, findNode, getChildren, getId, type ReportNode } from '../model/report';
+import { type ClientsReport, getChildren, getId, indexNodes } from '../model/report';
 import { ClientsChartCard } from './ClientsChartCard';
 import { ClientsTableCard } from './ClientsTableCard';
 
@@ -12,16 +12,18 @@ import { ClientsTableCard } from './ClientsTableCard';
  */
 export function ClientsDashboard({ report }: { report: ClientsReport }) {
   const { root, months } = report;
-  const parents = useMemo(() => parentMap([root], { getId, getChildren }), [root]);
+  // One walk of the tree per data change; every lookup below is then O(1).
+  const { parents, nodes } = useMemo(
+    () => ({ parents: parentMap([root], { getId, getChildren }), nodes: indexNodes(root) }),
+    [root]
+  );
   // As in the design, the company starts expanded with its branches showing.
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() => new Set([root.id]));
   const [scopeId, setScopeId] = useState(root.id);
 
   // A refetch could drop the scoped node; fall back to the root rather than break.
-  const scope = findNode(root, scopeId) ?? root;
-  const path = pathTo(scope.id, parents)
-    .map((id) => findNode(root, id))
-    .filter((node): node is ReportNode => node !== undefined);
+  const scope = nodes.get(scopeId) ?? root;
+  const path = pathTo(scope.id, parents).flatMap((id) => nodes.get(id) ?? []);
 
   const changeScope = (id: string) => {
     setScopeId(id);

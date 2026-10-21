@@ -49,10 +49,38 @@ export async function fetchClients({
   const response = await fetch(url, { signal, headers: { Accept: 'application/json' } });
   if (!response.ok) throw new ApiError(response.status, await problemTitle(response));
 
-  const parsed = clientsResponseSchema.safeParse(await response.json());
+  const parsed = clientsResponseSchema.safeParse(await readJson(response, signal));
   if (!parsed.success) throw new ContractError(z.prettifyError(parsed.error));
   return parsed.data;
 }
+
+/**
+ * A 2xx body that is not JSON (an HTML page from a proxy or a misrouted request) is a
+ * contract problem, not a connection problem; it must not surface as "check your
+ * connection". Aborts still propagate as aborts.
+ */
+async function readJson(response: Response, signal?: AbortSignal): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw new ContractError(
+      `Expected JSON, got ${response.headers.get('content-type') ?? 'no content type'}`
+    );
+  }
+}
+
+/**
+ * The retry policy for the clients query: retry server and network failures, at most
+ * twice; never bad requests or contract errors, and never a failure the page URL asked
+ * for on purpose (?fail=…).
+ */
+export function shouldRetry(params: Record<string, string>) {
+  return (failureCount: number, error: Error) =>
+    !params.fail && isTransient(error) && failureCount < MAX_RETRIES;
+}
+
+const MAX_RETRIES = 2;
 
 /** Errors worth retrying: the server failed or the network did, not the request. */
 export function isTransient(error: unknown): boolean {

@@ -153,7 +153,15 @@ export function StackedBarChart({
               series={series}
               plotHeight={plotHeight}
               activeIndex={active?.index}
-              onHover={(index) => setActive({ index, via: 'pointer' })}
+              onHover={(index) =>
+                // pointermove fires per pixel: keep the same state object (no re-render)
+                // while the pointer stays within one month.
+                setActive((current) =>
+                  current?.index === index && current.via === 'pointer'
+                    ? current
+                    : { index, via: 'pointer' }
+                )
+              }
               onSeriesActivate={onSeriesActivate}
               isSeriesActivatable={isSeriesActivatable}
             />

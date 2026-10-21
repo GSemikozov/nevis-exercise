@@ -1,5 +1,5 @@
 import { ChevronRight } from 'lucide-react';
-import { AnimatePresence, LayoutGroup, useIsPresent } from 'motion/react';
+import { AnimatePresence, useIsPresent } from 'motion/react';
 import * as m from 'motion/react-m';
 import {
   type ComponentProps,
@@ -13,7 +13,7 @@ import {
 import { cn } from '@/lib/cn';
 import { figmaTransition } from '@/lib/motion';
 import type { TreeGridRowModel } from './flatten';
-import type { TreeGridApi } from './use-tree-grid';
+import { ROW_FOCUS, type TreeGridApi, useTabIndex } from './use-tree-grid';
 
 /*
  * Presentational treegrid built on useTreeGrid. Markup is div-based with ARIA roles
@@ -137,11 +137,9 @@ export function TreeGridBody({ className, children, ...props }: ComponentProps<'
     // `relative`: popLayout positions leaving rows absolutely against this element.
     // biome-ignore lint/a11y/useSemanticElements: div rows are needed for row animations
     <div role="rowgroup" className={cn('relative', className)} {...props}>
-      <LayoutGroup>
-        <AnimatePresence mode="popLayout" initial={false}>
-          {children}
-        </AnimatePresence>
-      </LayoutGroup>
+      <AnimatePresence mode="popLayout" initial={false}>
+        {children}
+      </AnimatePresence>
     </div>
   );
 }
@@ -161,12 +159,14 @@ type TreeGridRowProps<T> = {
 export function TreeGridRow<T>({ row, className, children, ref }: TreeGridRowProps<T>) {
   const grid = useGrid();
   const isPresent = useIsPresent();
+  const tabIndex = useTabIndex(grid, row.id, ROW_FOCUS);
   const { ref: registerRef, ...rowProps } = grid.getRowProps(row);
 
   return (
     <RowContext value={row as TreeGridRowModel<unknown>}>
       <m.div
         {...rowProps}
+        tabIndex={tabIndex}
         ref={(element: HTMLDivElement | null) => {
           registerRef(element);
           if (typeof ref === 'function') ref(element);
@@ -176,6 +176,9 @@ export function TreeGridRow<T>({ row, className, children, ref }: TreeGridRowPro
         aria-hidden={isPresent ? undefined : true}
         inert={!isPresent}
         layout="position"
+        // Measure layout only when the set of rows changes, not on every re-render (a
+        // focus move re-renders a row without moving anything).
+        layoutDependency={grid.rows}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -200,11 +203,13 @@ export function TreeGridRow<T>({ row, className, children, ref }: TreeGridRowPro
 export function TreeGridRowHeader({ className, style, children, ...props }: ComponentProps<'div'>) {
   const grid = useGrid();
   const row = useRow();
+  const tabIndex = useTabIndex(grid, row.id, 0);
   const { ref, ...cellProps } = grid.getCellProps(row, 0);
 
   return (
     <div
       {...cellProps}
+      tabIndex={tabIndex}
       ref={ref}
       className={cn(rowHeaderLayout, 'min-w-0 outline-offset-[-2px]', className)}
       style={{
@@ -226,11 +231,13 @@ type TreeGridCellProps = ComponentProps<'div'> & {
 export function TreeGridCell({ colIndex, className, ...props }: TreeGridCellProps) {
   const grid = useGrid();
   const row = useRow();
+  const tabIndex = useTabIndex(grid, row.id, colIndex);
   const { ref, ...cellProps } = grid.getCellProps(row, colIndex);
 
   return (
     <div
       {...cellProps}
+      tabIndex={tabIndex}
       ref={ref}
       className={cn('rounded-sm outline-offset-2', className)}
       {...props}
