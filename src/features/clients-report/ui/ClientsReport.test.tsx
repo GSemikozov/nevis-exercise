@@ -117,7 +117,7 @@ describe('ClientsReport', () => {
 
   it('explains a failed request and recovers on retry', async () => {
     apiServer.use(
-      http.get('*/api/clients', () =>
+      http.get('*/api/v1/clients', () =>
         HttpResponse.json({ title: 'Not Found', status: 404 }, { status: 404 })
       )
     );
@@ -133,7 +133,7 @@ describe('ClientsReport', () => {
   });
 
   it('treats a response that breaks the contract as an error', async () => {
-    apiServer.use(http.get('*/api/clients', () => HttpResponse.json({ data: { id: 'x' } })));
+    apiServer.use(http.get('*/api/v1/clients', () => HttpResponse.json({ data: { id: 'x' } })));
     renderWithProviders(<ClientsReport />);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(

@@ -3,9 +3,9 @@ import { createApp } from './app.ts';
 
 const app = createApp();
 
-describe('GET /api/clients', () => {
+describe('GET /api/v1/clients', () => {
   it('returns the client tree and its period, matching the shared contract', async () => {
-    const res = await app.request('/api/clients');
+    const res = await app.request('/api/v1/clients');
 
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('application/json');
@@ -16,19 +16,21 @@ describe('GET /api/clients', () => {
   });
 
   it('answers a conditional request with 304 Not Modified', async () => {
-    const first = await app.request('/api/clients');
+    const first = await app.request('/api/v1/clients');
     const tag = first.headers.get('etag');
     expect(tag).toBeTruthy();
 
-    const second = await app.request('/api/clients', { headers: { 'If-None-Match': tag ?? '' } });
+    const second = await app.request('/api/v1/clients', {
+      headers: { 'If-None-Match': tag ?? '' },
+    });
     expect(second.status).toBe(304);
     expect(second.headers.get('etag')).toBe(tag);
     expect(second.headers.get('cache-control')).toContain('max-age=60');
   });
 
   it('matches weak and listed entity tags too', async () => {
-    const tag = (await app.request('/api/clients')).headers.get('etag') ?? '';
-    const res = await app.request('/api/clients', {
+    const tag = (await app.request('/api/v1/clients')).headers.get('etag') ?? '';
+    const res = await app.request('/api/v1/clients', {
       headers: { 'If-None-Match': `"stale", W/${tag}` },
     });
     expect(res.status).toBe(304);
@@ -36,14 +38,14 @@ describe('GET /api/clients', () => {
 
   it('ignores the demo switches when they are turned off', async () => {
     const production = createApp({ demoSwitches: false });
-    const res = await production.request('/api/clients?fail=503&delay=3000');
+    const res = await production.request('/api/v1/clients?fail=503&delay=3000');
 
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toContain('max-age=60');
   });
 
   it('simulates a failure with ?fail as an uncached problem document', async () => {
-    const res = await app.request('/api/clients?fail=503');
+    const res = await app.request('/api/v1/clients?fail=503');
 
     expect(res.status).toBe(503);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
@@ -53,7 +55,7 @@ describe('GET /api/clients', () => {
 
   it('holds the response for ?delay milliseconds and does not cache it', async () => {
     const started = performance.now();
-    const res = await app.request('/api/clients?delay=50');
+    const res = await app.request('/api/v1/clients?delay=50');
 
     expect(res.status).toBe(200);
     expect(performance.now() - started).toBeGreaterThanOrEqual(45);
@@ -65,7 +67,7 @@ describe('GET /api/clients', () => {
     ['non-numeric fail', '?fail=oops'],
     ['fail outside 4xx/5xx', '?fail=200'],
   ])('rejects %s with 400', async (_, query) => {
-    const res = await app.request(`/api/clients${query}`);
+    const res = await app.request(`/api/v1/clients${query}`);
 
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ status: 400, title: 'Invalid query parameters' });

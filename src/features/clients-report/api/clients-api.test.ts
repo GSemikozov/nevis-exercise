@@ -19,7 +19,7 @@ describe('fetchClients', () => {
 
   it('turns a non-2xx answer into an ApiError carrying the problem title', async () => {
     apiServer.use(
-      http.get('*/api/clients', () =>
+      http.get('*/api/v1/clients', () =>
         HttpResponse.json({ title: 'Service Unavailable', status: 503 }, { status: 503 })
       )
     );
@@ -29,14 +29,16 @@ describe('fetchClients', () => {
   });
 
   it('treats a 2xx body that is not JSON as a contract error, not a network one', async () => {
-    apiServer.use(http.get('*/api/clients', () => HttpResponse.html('<!doctype html><p>Hi</p>')));
+    apiServer.use(
+      http.get('*/api/v1/clients', () => HttpResponse.html('<!doctype html><p>Hi</p>'))
+    );
     await expect(fetchClients({})).rejects.toBeInstanceOf(ContractError);
   });
 
   it('forwards the demo switches to the API', async () => {
     let requested = '';
     apiServer.use(
-      http.get('*/api/clients', ({ request }) => {
+      http.get('*/api/v1/clients', ({ request }) => {
         requested = new URL(request.url).search;
         return HttpResponse.json({ title: 'Simulated failure', status: 503 }, { status: 503 });
       })

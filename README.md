@@ -2,7 +2,7 @@
 
 [![Netlify Status](https://api.netlify.com/api/v1/badges/bc1ad488-2c7e-4dbb-9940-ddeb6d9257df/deploy-status)](https://app.netlify.com/projects/nevis-exercise/deploys)
 
-**Live:** https://nevis-exercise.netlify.app · loading state: [`?delay=2000`](https://nevis-exercise.netlify.app/?delay=2000) · error state: [`?fail=503`](https://nevis-exercise.netlify.app/?fail=503) · API: [`/api/clients`](https://nevis-exercise.netlify.app/api/clients)
+**Live:** https://nevis-exercise.netlify.app · loading state: [`?delay=2000`](https://nevis-exercise.netlify.app/?delay=2000) · error state: [`?fail=503`](https://nevis-exercise.netlify.app/?fail=503) · API: [`/api/v1/clients`](https://nevis-exercise.netlify.app/api/v1/clients)
 
 A dashboard over the client book of business: a stacked bar chart of clients per month and a table that drills from the whole company down to a branch, an advisor and an acquisition channel. The data is served by a small Node.js REST API.
 
@@ -76,13 +76,14 @@ The dependency rule is one-directional: `app → features → components → lib
 
 | Endpoint | Response |
 |---|---|
-| `GET /api/clients` | `{ data: <client tree>, meta: { periodStart: "2024-02" } }` |
+| `GET /api/v1/clients` | `{ data: <client tree>, meta: { periodStart: "2024-02" } }` |
 | `GET /api/health` | `{ status: "ok" }` |
 
 - **Contract:** `shared/clients.schema.ts` (zod/mini) is the single source of truth. The server validates its data at startup and refuses to start on a mismatch; the client validates every response, so a broken payload surfaces as an error state instead of a broken UI.
 - **Period:** the brief's payload carries 12 values per node but no dates ("Feb 2024 to Jan 2025 in the design"). The API makes the period explicit in `meta.periodStart` rather than leaving month labels hard-coded in the UI.
 - **Errors:** RFC 9457 problem details (`application/problem+json`) for every non-2xx response.
-- **Caching:** `ETag` with `304 Not Modified`, `Cache-Control: public, max-age=60, stale-while-revalidate=600`.
+- **Caching:** `ETag` with `304 Not Modified`, `Cache-Control: public, max-age=60, stale-while-revalidate=600`. On Netlify the function also sends `Netlify-Vary: query=delay|fail`: the CDN leaves query strings out of its cache key by default, so `?fail=503` used to match the cached plain response and, the origin having failed, came back as that stale 200. Testing against production caught it.
+- **Versioned path** (`/api/v1/…`), so the contract can change without breaking existing clients. It also gave the fix above a clean start: entries cached on the earlier unversioned path survived a CDN purge, kept for serving when the origin errors.
 - **Demo switches** to see the loading and error states against the real API: `?delay=<ms>` (up to 3000) and `?fail=<4xx|5xx>`. Both responses are `no-store`. A held response keeps a serverless function busy, so `API_DEMO_SWITCHES=off` turns them off; the public demo keeps them on on purpose, a real production deployment would not.
 - **ETag** is computed once at startup (the payload is static), not by hashing every response.
 
@@ -164,7 +165,7 @@ Neighbouring pairs do separate well for colour-blind readers (ΔE ≥ 16), so th
 
 - **Run the manual screen reader pass** in [`docs/a11y-testing.md`](docs/a11y-testing.md) with VoiceOver and NVDA, and ideally with screen reader users.
 - **Virtualize the table** with TanStack Virtual once real data volumes are known. The row model is already a flat list; the row animations would move from layout animation to animating within the virtualizer's positioning.
-- **Load the tree lazily** for large organisations: fetch a node's children when it is expanded (`GET /api/clients/:id/children`), with TanStack Query caching each level.
+- **Load the tree lazily** for large organisations: fetch a node's children when it is expanded (`GET /api/v1/clients/:id/children`), with TanStack Query caching each level.
 - **Put the view in the URL** (scope and expanded rows), so a drilled-down view can be shared and survives a reload.
 - **Table features:** a total column, sorting by month, and a sticky header for long tables.
 - **A dark theme** once design defines one: a block of token overrides plus a re-validated chart palette.

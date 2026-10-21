@@ -1,4 +1,8 @@
-import { type ClientsResponse, clientsResponseSchema } from '@shared/clients.schema';
+import {
+  CLIENTS_ENDPOINT,
+  type ClientsResponse,
+  clientsResponseSchema,
+} from '@shared/clients.schema';
 import * as z from 'zod/mini';
 
 /** The API answered with a non-2xx status. */
@@ -43,7 +47,7 @@ export async function fetchClients({
   signal?: AbortSignal;
   params?: Record<string, string>;
 }): Promise<ClientsResponse> {
-  const url = new URL('/api/clients', window.location.origin);
+  const url = new URL(CLIENTS_ENDPOINT, window.location.origin);
   for (const [name, value] of Object.entries(params)) url.searchParams.set(name, value);
 
   const response = await fetch(url, { signal, headers: { Accept: 'application/json' } });

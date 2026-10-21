@@ -6,7 +6,7 @@ import clients from '../../server/data/clients.json';
 export const clientsResponse = { data: clients, meta: { periodStart: '2024-02' } };
 
 export const apiServer = setupServer(
-  http.get('*/api/clients', () => HttpResponse.json(clientsResponse))
+  http.get('*/api/v1/clients', () => HttpResponse.json(clientsResponse))
 );
 
 /** Starts the mock API for the current test file and resets it between tests. */

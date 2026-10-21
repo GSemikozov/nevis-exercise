@@ -4,7 +4,11 @@ import { HTTPException } from 'hono/http-exception';
 import { logger } from 'hono/logger';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import * as z from 'zod/mini';
-import { type ClientsResponse, clientsResponseSchema } from '../shared/clients.schema.ts';
+import {
+  CLIENTS_ENDPOINT,
+  type ClientsResponse,
+  clientsResponseSchema,
+} from '../shared/clients.schema.ts';
 import company from './data/clients.json' with { type: 'json' };
 
 /** The mock covers Feb 2024 – Jan 2025, the period shown in the design. */
@@ -53,7 +57,8 @@ export function createApp({
 
   api.get('/health', (c) => c.json({ status: 'ok' }));
 
-  api.get('/clients', async (c) => {
+  // The sub-app is mounted at /api, so the route is the shared endpoint minus that prefix.
+  api.get(CLIENTS_ENDPOINT.slice('/api'.length), async (c) => {
     const { delay, fail } = demoSwitches ? parseDemoParams(c.req.query()) : {};
     if (delay) await sleep(delay);
     if (fail) throw problem(fail as ContentfulStatusCode, 'Simulated failure', `?fail=${fail}`);

@@ -22,8 +22,8 @@ test('answers a missing asset with 404, not the app shell', async ({ request }) 
 test('keeps the demo switches out of the CDN cache for the plain response', async ({ request }) => {
   // Warm the cache with the plain response, then ask for a failure: it must not come back
   // as the cached 200.
-  await request.get('/api/clients');
-  const res = await request.get('/api/clients?fail=503');
+  await request.get('/api/v1/clients');
+  const res = await request.get('/api/v1/clients?fail=503');
 
   expect(res.status()).toBe(503);
 });

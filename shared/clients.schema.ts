@@ -1,7 +1,11 @@
 import * as z from 'zod/mini';
 
+/** Where the client tree is served. Versioned, so the contract can change without
+ * breaking clients (or meeting their cached responses) on the old path. */
+export const CLIENTS_ENDPOINT = '/api/v1/clients';
+
 /*
- * Contract for `GET /api/clients`. The server validates its data against it at startup,
+ * Contract for `GET /api/v1/clients`. The server validates its data against it at startup,
  * and the client validates every response before it reaches the UI.
  *
  * The tree is not uniform: each level names its children differently and any level
