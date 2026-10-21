@@ -11,12 +11,19 @@ test('serves the security headers with the page', async ({ request }) => {
   expect(res.headers()['x-content-type-options']).toBe('nosniff');
 });
 
-test('answers a missing asset with 404, not the app shell, and does not cache it', async ({
-  request,
-}) => {
+test('answers a missing asset with 404, not the app shell', async ({ request }) => {
   const res = await request.get('/assets/does-not-exist-0000.js');
 
-  // (A 404 page may well be HTML, e.g. Netlify's; what matters is that it is not a 200.)
+  // Whether that 404 may be cached is checked against the Node server in
+  // server/static.test.ts; Netlify sets headers per path, not per status (see netlify.toml).
   expect(res.status()).toBe(404);
-  expect(res.headers()['cache-control'] ?? '').not.toContain('immutable');
+});
+
+test('keeps the demo switches out of the CDN cache for the plain response', async ({ request }) => {
+  // Warm the cache with the plain response, then ask for a failure: it must not come back
+  // as the cached 200.
+  await request.get('/api/clients');
+  const res = await request.get('/api/clients?fail=503');
+
+  expect(res.status()).toBe(503);
 });

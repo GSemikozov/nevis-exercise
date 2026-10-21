@@ -12,13 +12,16 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
-# Vite fingerprints everything under /assets, so it can be cached forever.
+# Vite fingerprints everything under /assets, so it can be cached forever. Netlify sets
+# headers per path, not per status, so a 404 under /assets gets this header too; that is
+# accepted, because a fingerprinted name is never reused for a different file. (The Node
+# server, which can, skips it on errors: see server/static.ts.)
 [[headers]]
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# Keep in sync with secureHeaders() in server/main.ts, which the e2e tests run against.
+# Keep in sync with serveClient() in server/static.ts, which the e2e tests run against.
 # style-src allows 'unsafe-inline' because motion's popLayout injects a <style> element.
 [[headers]]
   for = "/*"
