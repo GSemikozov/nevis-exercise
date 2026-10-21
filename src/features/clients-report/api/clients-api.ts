@@ -2,6 +2,7 @@ import {
   CLIENTS_ENDPOINT,
   type ClientsResponse,
   clientsResponseSchema,
+  DEMO_CLIENTS_ENDPOINT,
 } from '@shared/clients.schema';
 import * as z from 'zod/mini';
 
@@ -47,7 +48,9 @@ export async function fetchClients({
   signal?: AbortSignal;
   params?: Record<string, string>;
 }): Promise<ClientsResponse> {
-  const url = new URL(CLIENTS_ENDPOINT, window.location.origin);
+  // Demo switches go to the demo endpoint, so they never touch the real one or its caches.
+  const isDemo = Object.keys(params).length > 0;
+  const url = new URL(isDemo ? DEMO_CLIENTS_ENDPOINT : CLIENTS_ENDPOINT, window.location.origin);
   for (const [name, value] of Object.entries(params)) url.searchParams.set(name, value);
 
   const response = await fetch(url, { signal, headers: { Accept: 'application/json' } });

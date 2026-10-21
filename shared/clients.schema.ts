@@ -4,6 +4,9 @@ import * as z from 'zod/mini';
  * breaking existing clients. */
 export const CLIENTS_ENDPOINT = '/api/v1/clients';
 
+/** The same data with the demo switches (?delay, ?fail), on a path of its own. */
+export const DEMO_CLIENTS_ENDPOINT = '/api/v1/demo/clients';
+
 /*
  * Contract for `GET /api/v1/clients`. The server validates its data against it at startup,
  * and the client validates every response before it reaches the UI.

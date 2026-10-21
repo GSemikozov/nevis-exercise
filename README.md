@@ -2,7 +2,9 @@
 
 [![Netlify Status](https://api.netlify.com/api/v1/badges/bc1ad488-2c7e-4dbb-9940-ddeb6d9257df/deploy-status)](https://app.netlify.com/projects/nevis-exercise/deploys)
 
-**Live:** https://nevis-exercise.netlify.app · loading state: [`?delay=2000`](https://nevis-exercise.netlify.app/?delay=2000) · error state: [`?fail=503`](https://nevis-exercise.netlify.app/?fail=503) · API: [`/api/v1/clients`](https://nevis-exercise.netlify.app/api/v1/clients)
+**Live:** https://nevis-exercise.netlify.app · API: [`/api/v1/clients`](https://nevis-exercise.netlify.app/api/v1/clients)
+
+**For reviewers:** to see the loading and error states without waiting for a slow network or an outage, open [`?delay=2000`](https://nevis-exercise.netlify.app/?delay=2000) or [`?fail=503`](https://nevis-exercise.netlify.app/?fail=503). These demo switches exist only to review those states; they are not a product feature (see [API](#api) for how they are kept apart from real traffic).
 
 A dashboard over the client book of business: a stacked bar chart of clients per month and a table that drills from the whole company down to a branch, an advisor and an acquisition channel. The data is served by a small Node.js REST API.
 
@@ -17,7 +19,7 @@ npm install
 npm run dev        # API on :3001, app on http://localhost:3000
 ```
 
-Try `http://localhost:3000/?delay=2000` for the loading state and `?fail=503` for the error state; both are passed through to the real API.
+Try `http://localhost:3000/?delay=2000` for the loading state and `?fail=503` for the error state (demo switches for reviewing those states, not a product feature).
 
 | Command | What it does |
 |---|---|
@@ -77,14 +79,15 @@ The dependency rule is one-directional: `app → features → components → lib
 | Endpoint | Response |
 |---|---|
 | `GET /api/v1/clients` | `{ data: <client tree>, meta: { periodStart: "2024-02" } }` |
+| `GET /api/v1/demo/clients?delay=…&fail=…` | The same, with the demo switches (see below) |
 | `GET /api/health` | `{ status: "ok" }` |
 
 - **Contract:** `shared/clients.schema.ts` (zod/mini) is the single source of truth. The server validates its data at startup and refuses to start on a mismatch; the client validates every response, so a broken payload surfaces as an error state instead of a broken UI.
 - **Period:** the brief's payload carries 12 values per node but no dates ("Feb 2024 to Jan 2025 in the design"). The API makes the period explicit in `meta.periodStart` rather than leaving month labels hard-coded in the UI.
 - **Errors:** RFC 9457 problem details (`application/problem+json`) for every non-2xx response.
-- **Caching:** `Cache-Control: private, max-age=60` with an `ETag`, so the browser reuses the response for a minute and then revalidates (`304 Not Modified`). `private` because client data belongs to the signed-in advisor in a real product and must not sit in a shared CDN cache. Testing against production showed a second reason: Netlify's CDN answers an origin 5xx with any expired copy it holds for the path, whatever the query, so with a `public` policy `?fail=503` came back as a stale 200 (and a real outage would have been masked by old data).
+- **Caching:** `Cache-Control: private, max-age=60` with an `ETag`, so the browser reuses the response for a minute and then revalidates (`304 Not Modified`). `private` because client data belongs to the signed-in advisor in a real product and must not sit in a shared CDN cache.
 - **Versioned path** (`/api/v1/…`), so the contract can change without breaking existing clients.
-- **Demo switches** to see the loading and error states against the real API: `?delay=<ms>` (up to 3000) and `?fail=<4xx|5xx>`. Both responses are `no-store`. A held response keeps a serverless function busy, so `API_DEMO_SWITCHES=off` turns them off; the public demo keeps them on on purpose, a real production deployment would not.
+- **Demo switches (review aid only, not a product feature)** to see the loading and error states against the real API: `?delay=<ms>` (up to 3000) and `?fail=<4xx|5xx>` on the page URL are passed to `/api/v1/demo/clients`, whose responses are `no-store`. They live on their own endpoint so debug behaviour never shares a URL, or its caches, with real traffic. Production testing is what forced this: with the switches on the real endpoint, Netlify's CDN answered `?fail=503` with a stale copy of the normal response, because it serves any expired copy it holds for a path when the origin returns a 5xx, whatever the query, and neither `Netlify-Vary` nor a cache purge removed those copies. A held response keeps a serverless function busy, so `API_DEMO_SWITCHES=off` removes the endpoint; the public demo keeps it on purpose, a real production deployment would not.
 - **ETag** is computed once at startup (the payload is static), not by hashing every response.
 
 ## Decisions

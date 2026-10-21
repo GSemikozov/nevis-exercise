@@ -19,13 +19,20 @@ test('answers a missing asset with 404, not the app shell', async ({ request }) 
   expect(res.status()).toBe(404);
 });
 
-test('keeps client data out of shared caches, so an error is never masked', async ({ request }) => {
-  const plain = await request.get('/api/v1/clients');
-  // private: no CDN keeps a copy. (Netlify answered an origin 5xx with any expired copy
-  // it held for the path, whatever the query, so ?fail=503 came back as a stale 200.)
-  expect(plain.headers()['cache-control']).toBe('private, max-age=60');
-  expect(plain.headers()['cache-status'] ?? '').not.toMatch(/\bhit\b|stored/);
+test('keeps client data out of shared caches', async ({ request }) => {
+  const res = await request.get('/api/v1/clients');
 
-  const failure = await request.get('/api/v1/clients?fail=503');
-  expect(failure.status()).toBe(503);
+  expect(res.headers()['cache-control']).toBe('private, max-age=60');
+  expect(res.headers()['cache-status'] ?? '').not.toMatch(/\bhit\b|stored/);
+});
+
+test('serves a simulated failure from the demo endpoint, never a cached copy', async ({
+  request,
+}) => {
+  // Netlify's CDN answers an origin 5xx with any stale copy it holds for the path, whatever
+  // the query; the demo endpoint has never had a cacheable response, so there is none.
+  await request.get('/api/v1/clients');
+  for (let i = 0; i < 5; i += 1) {
+    expect((await request.get('/api/v1/demo/clients?fail=503')).status()).toBe(503);
+  }
 });

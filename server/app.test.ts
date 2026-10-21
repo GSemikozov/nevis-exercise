@@ -36,16 +36,32 @@ describe('GET /api/v1/clients', () => {
     expect(res.status).toBe(304);
   });
 
-  it('ignores the demo switches when they are turned off', async () => {
-    const production = createApp({ demoSwitches: false });
-    const res = await production.request('/api/v1/clients?fail=503&delay=3000');
+  it('takes no debug parameters: ?fail and ?delay only work on the demo endpoint', async () => {
+    const res = await app.request('/api/v1/clients?fail=503&delay=3000');
 
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('private, max-age=60');
   });
+});
+
+describe('GET /api/v1/demo/clients', () => {
+  it('serves the same data, uncached', async () => {
+    const res = await app.request('/api/v1/demo/clients');
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    expect(clientsResponseSchema.parse(await res.json()).data.name).toBe('Company');
+  });
+
+  it('does not exist when the demo switches are turned off', async () => {
+    const production = createApp({ demoSwitches: false });
+    const res = await production.request('/api/v1/demo/clients?fail=503');
+
+    expect(res.status).toBe(404);
+  });
 
   it('simulates a failure with ?fail as an uncached problem document', async () => {
-    const res = await app.request('/api/v1/clients?fail=503');
+    const res = await app.request('/api/v1/demo/clients?fail=503');
 
     expect(res.status).toBe(503);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
@@ -55,7 +71,7 @@ describe('GET /api/v1/clients', () => {
 
   it('holds the response for ?delay milliseconds and does not cache it', async () => {
     const started = performance.now();
-    const res = await app.request('/api/v1/clients?delay=50');
+    const res = await app.request('/api/v1/demo/clients?delay=50');
 
     expect(res.status).toBe(200);
     expect(performance.now() - started).toBeGreaterThanOrEqual(45);
@@ -67,7 +83,7 @@ describe('GET /api/v1/clients', () => {
     ['non-numeric fail', '?fail=oops'],
     ['fail outside 4xx/5xx', '?fail=200'],
   ])('rejects %s with 400', async (_, query) => {
-    const res = await app.request(`/api/v1/clients${query}`);
+    const res = await app.request(`/api/v1/demo/clients${query}`);
 
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ status: 400, title: 'Invalid query parameters' });

@@ -38,7 +38,7 @@ describe('fetchClients', () => {
   it('forwards the demo switches to the API', async () => {
     let requested = '';
     apiServer.use(
-      http.get('*/api/v1/clients', ({ request }) => {
+      http.get('*/api/v1/demo/clients', ({ request }) => {
         requested = new URL(request.url).search;
         return HttpResponse.json({ title: 'Simulated failure', status: 503 }, { status: 503 });
       })

@@ -8,6 +8,7 @@ import {
   CLIENTS_ENDPOINT,
   type ClientsResponse,
   clientsResponseSchema,
+  DEMO_CLIENTS_ENDPOINT,
 } from '../shared/clients.schema.ts';
 import company from './data/clients.json' with { type: 'json' };
 
@@ -34,7 +35,7 @@ const demoParamsSchema = z.object({
 interface AppOptions {
   clients?: ClientsResponse;
   logRequests?: boolean;
-  /** Honour ?delay and ?fail. Defaults to on unless API_DEMO_SWITCHES=off. */
+  /** Serve the demo endpoint (?delay, ?fail). Defaults to on unless API_DEMO_SWITCHES=off. */
   demoSwitches?: boolean;
 }
 
@@ -57,25 +58,29 @@ export function createApp({
 
   api.get('/health', (c) => c.json({ status: 'ok' }));
 
-  // The sub-app is mounted at /api, so the route is the shared endpoint minus that prefix.
-  api.get(CLIENTS_ENDPOINT.slice('/api'.length), async (c) => {
-    const { delay, fail } = demoSwitches ? parseDemoParams(c.req.query()) : {};
-    if (delay) await sleep(delay);
-    if (fail) throw problem(fail as ContentfulStatusCode, 'Simulated failure', `?fail=${fail}`);
-
-    if (delay !== undefined) {
-      c.header('Cache-Control', 'no-store');
-    } else {
-      // private: client data belongs to the signed-in advisor in a real product, so no
-      // shared cache (CDN) may keep it. The browser still reuses it for a minute and then
-      // revalidates with the ETag. It also keeps the CDN from answering an origin error
-      // with a stale copy, which is what Netlify does with cached responses.
-      c.header('Cache-Control', 'private, max-age=60');
-      c.header('ETag', etag);
-      if (matchesEtag(c.req.header('If-None-Match'), etag)) return c.body(null, 304);
-    }
+  // The real endpoint takes no debug parameters.
+  api.get(routeOf(CLIENTS_ENDPOINT), (c) => {
+    // private: client data belongs to the signed-in advisor in a real product, so no
+    // shared cache (CDN) may keep it. The browser still reuses it for a minute and then
+    // revalidates with the ETag.
+    c.header('Cache-Control', 'private, max-age=60');
+    c.header('ETag', etag);
+    if (matchesEtag(c.req.header('If-None-Match'), etag)) return c.body(null, 304);
     return c.body(body, 200, { 'Content-Type': 'application/json' });
   });
+
+  // The demo switches live on their own path, never shared with real traffic or its
+  // caches: Netlify's CDN answers an origin 5xx with any stale copy it holds for a path,
+  // whatever the query, so `?fail` on the real endpoint could come back as old data.
+  if (demoSwitches) {
+    api.get(routeOf(DEMO_CLIENTS_ENDPOINT), async (c) => {
+      const { delay, fail } = parseDemoParams(c.req.query());
+      if (delay) await sleep(delay);
+      if (fail) throw problem(fail as ContentfulStatusCode, 'Simulated failure', `?fail=${fail}`);
+      c.header('Cache-Control', 'no-store');
+      return c.body(body, 200, { 'Content-Type': 'application/json' });
+    });
+  }
 
   api.all('*', (c) => {
     throw problem(404, 'Not Found', `No API route for ${c.req.method} ${c.req.path}`);
@@ -90,6 +95,11 @@ export function createApp({
   });
 
   return app;
+}
+
+/** The API sub-app is mounted at /api, so its routes are the shared endpoints minus it. */
+function routeOf(endpoint: string) {
+  return endpoint.slice('/api'.length);
 }
 
 function defaultClients(): ClientsResponse {
