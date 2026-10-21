@@ -2,6 +2,8 @@
 
 A dashboard over the client book of business: a stacked bar chart of clients per month and a table that drills from the whole company down to a branch, an advisor and an acquisition channel. The data is served by a small Node.js REST API.
 
+![The dashboard at 1440px with Branch 1 and Anna Blackwood expanded](docs/screenshot.png)
+
 ## Quick start
 
 Requires Node 22 (`nvm use` picks it up from `.nvmrc`).
@@ -11,14 +13,41 @@ npm install
 npm run dev        # API on :3001, app on http://localhost:3000
 ```
 
+Try `http://localhost:3000/?delay=2000` for the loading state and `?fail=503` for the error state; both are passed through to the real API.
+
 | Command | What it does |
 |---|---|
 | `npm run dev` | API (Node, watch mode) and Vite dev server; Vite proxies `/api` to the API |
 | `npm run build` | Type-checks every project and builds the client into `dist/` |
-| `npm start` | Production-like run: one Node process serves `dist/` and the API |
-| `npm test` / `npm run test:run` | Unit and component tests (Vitest), watch / single run |
-| `npm run test:e2e` | End-to-end and accessibility tests in real browsers (Playwright + axe) |
+| `npm start` | Production-like run: one Node process serves `dist/` and the API on :3000 |
+| `npm test` / `npm run test:run` | Unit, component and screen reader tests (Vitest), watch / single run |
+| `npm run test:e2e` | End-to-end and accessibility tests in Chromium and WebKit (Playwright + axe). First run: `npx playwright install chromium webkit` |
 | `npm run lint` / `npm run typecheck` | Biome lint + format check / TypeScript |
+
+## Testing
+
+| What | How | Where |
+|---|---|---|
+| Expand and collapse (mouse and keyboard), the APG keyboard model, focus | Vitest + Testing Library | `src/components/tree-grid/TreeGrid.test.tsx`, `src/features/clients-report/ui/ClientsReport.test.tsx` |
+| How the data maps into the chart | Pure functions: data → series → geometry; then the rendered marks | `src/features/clients-report/model/model.test.ts`, `src/components/stacked-bar-chart/*.test.ts(x)` |
+| Loading, errors, retry, contract violations | MSW in place of the API | `ClientsReport.test.tsx` |
+| What a screen reader announces | `@guidepup/virtual-screen-reader` | `src/features/clients-report/ui/screen-reader.test.tsx` |
+| API contract, caching, errors; data consistency | `app.request()` against the Hono app | `server/*.test.ts`, `shared/*.test.ts` |
+| Real browsers: keyboard, animation settling, reduced motion, CSP, 375px | Playwright, Chromium + WebKit | `e2e/` |
+| WCAG 2.2 AA rules in every UI state | axe-core in Playwright | `e2e/a11y.spec.ts` |
+| Manual screen reader and zoom checks | Checklist | [`docs/a11y-testing.md`](docs/a11y-testing.md) |
+
+CI (GitHub Actions) runs lint, types, unit tests and the build, and the end-to-end suite in a second job.
+
+## Accessibility
+
+- **Table:** a WAI-ARIA treegrid. Every row carries `aria-level`, `aria-posinset`, `aria-setsize`, and `aria-expanded` when it has children, so a screen reader announces e.g. "Branch 1, not expanded, level 2, 1 of 3". One tab stop; arrow keys move between rows and cells, Right/Left expand, collapse or go to the parent, Enter/Space toggle, Home/End jump.
+- **Chart:** the SVG is hidden from assistive technology. The chart region is one tab stop named after its scope ("Clients per month for Company, by branch, Feb 2024 to Jan 2025"); arrow keys step through months, each read out through a live region and shown in a tooltip. Drilling is available as legend buttons. The table is the full text alternative.
+- **Motion:** honours "reduce motion" (no sliding, opacity only). **Contrast:** text passes AA; see "Colours" below for the chart. **Forced colours:** focus uses outlines, which survive Windows High Contrast.
+
+## Deployment
+
+Netlify: the client is static (`dist/`), the API is the same Hono app as a Node.js Netlify Function (`netlify/functions/api.ts`, routed at `/api/*`). Build settings, caching and security headers (CSP, frame and referrer policies) are in `netlify.toml`; `npm start` serves the same headers, so the end-to-end tests run under the production CSP.
 
 ## Architecture
 
@@ -114,6 +143,21 @@ The three chart colours from the design were run through a palette check (OKLCH 
 
 Neighbouring pairs do separate well for colour-blind readers (ΔE ≥ 16), so the design's colours ship unchanged, backed by the mitigations WCAG 1.4.11 allows: a legend for every series, a 2px gap between stacked segments, exact values in a tooltip, and the full data in the table. Series four and five (`#4A8FC4`, `#B8860B`) were chosen to pass every check next to their neighbours. Worth raising with design: a darker peach and violet would remove the reliance on those mitigations.
 
+### Questions for the team
+
+- What do the values measure: client count, or something like assets under management? It changes the chart (stacked counts vs. a share of a total) and the number format.
+- Why do most series drop sharply from August to September 2024 and stay flat until December? If the mock is placeholder data, fine; if not, it looks like missing data rather than a real trend.
+- Should drilling the chart and expanding the table be linked both ways? Here the chart drives the table but not the reverse (see "What the chart stacks").
+- Where do advisor photos come from, if the design's avatars are meant to be real?
+
 ## What I would do next
 
-_In progress._
+- **Run the manual screen reader pass** in [`docs/a11y-testing.md`](docs/a11y-testing.md) with VoiceOver and NVDA, and ideally with screen reader users.
+- **Virtualize the table** with TanStack Virtual once real data volumes are known. The row model is already a flat list; the row animations would move from layout animation to animating within the virtualizer's positioning.
+- **Load the tree lazily** for large organisations: fetch a node's children when it is expanded (`GET /api/clients/:id/children`), with TanStack Query caching each level.
+- **Put the view in the URL** (scope and expanded rows), so a drilled-down view can be shared and survives a reload.
+- **Table features:** a total column, sorting by month, and a sticky header for long tables.
+- **A dark theme** once design defines one: a block of token overrides plus a re-validated chart palette.
+- **Component workshop and visual regression:** Storybook for the tree grid and chart with their states, and Playwright screenshot tests against the design.
+- **API:** an OpenAPI document generated from the zod schema, and real persistence behind the endpoint.
+- **Observability:** Web Vitals (INP when expanding large subtrees in particular) and error reporting.

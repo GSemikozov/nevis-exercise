@@ -1,6 +1,23 @@
 import { expect, test } from '@playwright/test';
 import { chart, openDashboard, row } from './helpers';
 
+test('runs without console errors under the production CSP', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  page.on('pageerror', (error) => errors.push(error.message));
+
+  await openDashboard(page);
+  // Exercise the animations, including the popLayout style injection on collapse.
+  await row(page, 'Branch 1').click();
+  await expect(row(page, 'Anna Blackwood')).toBeVisible();
+  await row(page, 'Branch 1').click();
+  await expect(row(page, 'Anna Blackwood')).toHaveCount(0);
+
+  expect(errors).toEqual([]);
+});
+
 test.describe('expand and collapse', () => {
   test('reveals and hides the level beneath with the mouse, fully animated in', async ({
     page,

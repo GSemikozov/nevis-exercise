@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
+import { secureHeaders } from 'hono/secure-headers';
 import { createApp } from './app.ts';
 
 /*
@@ -17,6 +18,27 @@ const port = Number(process.env.PORT ?? (serveClient ? 3000 : 3001));
 const app = createApp({ logRequests: true });
 
 if (serveClient) {
+  // The same security headers as netlify.toml (keep the two in sync), so the e2e run
+  // against this server proves the page works under the production CSP. Styles allow
+  // 'unsafe-inline' because motion's popLayout injects a <style> element at runtime.
+  app.use(
+    '*',
+    secureHeaders({
+      contentSecurityPolicy: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:'],
+        fontSrc: ["'self'"],
+        connectSrc: ["'self'"],
+        baseUri: ["'self'"],
+        formAction: ["'none'"],
+        frameAncestors: ["'none'"],
+      },
+      referrerPolicy: 'strict-origin-when-cross-origin',
+      xFrameOptions: 'DENY',
+    })
+  );
   // Vite fingerprints everything under /assets, so it can be cached forever.
   app.use('/assets/*', async (c, next) => {
     await next();
