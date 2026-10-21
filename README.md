@@ -144,7 +144,24 @@ So the chart shows **one scope at a time, stacked by the level beneath it**: the
 - **Avatars:** the design shows photos, but the API has no image URLs, so advisors get initials. They are decorative (`aria-hidden`); the name next to them carries the meaning.
 - **Default state:** as in the design, the company starts expanded with its branches showing, and the chart starts at company level.
 - **Branch 2 and Branch 3** show chevrons in the design; they have no employees, so here they have no chevron and are not announced as expandable.
-- **Chart hover:** the prototype has none. A tooltip with every series and the total was added on hover and on keyboard focus, since a stacked chart is hard to read without exact values.
+
+### Additions to the design
+
+Everything below goes beyond the mockup and prototype. Each is a deliberate addition, not a misreading of the design, and each would be worth confirming with design.
+
+| Addition | Why |
+|---|---|
+| Chart drill-down: segments and legend entries drill, a breadcrumb goes back, a caption names the split ("· by branch") | The design's channel split exists for one employee only (see "What the chart stacks"); drilling makes the brief's "from the whole company down to … an acquisition channel" work in the chart too |
+| "Show in chart" button on table rows that have a level beneath | The way from a row to its chart, without giving the row click (expand/collapse in the design) a second meaning. It appears on hover and focus, is always visible on touch screens, and stays visible, marked as pressed, on the row the chart currently shows. Keyboard: Tab from a focused row reaches it (the WAI-ARIA treegrid pattern for widgets in a row) |
+| Chart tooltip with every series and the total, on hover, tap, or keyboard | The prototype has none; a stacked chart is hard to read without exact values |
+| Keyboard walk-through of the chart (arrow keys, read out through a live region) | Keyboard and screen reader access to what the tooltip shows |
+| Touch behaviour: a tap reads a month and never drills; a horizontal drag moves along months | There is no hover on touch; reading a value must not change the view by accident |
+| A 2px gap between stacked segments | Separates neighbouring series whose colours have low contrast (see "Colours") |
+| Series colours 4 and 5, and a grey "Other" | The design defines three colours; a branch has five advisors |
+| Pinned name column and sideways scrolling inside the table card | The design is desktop-only; the brief asks that nothing break or overflow down to 375px |
+| Loading skeleton, error message with retry | The design shows only the loaded state; the brief asks for loading and error handling |
+| Initials instead of advisor photos | The API has no image URLs (see "Smaller calls") |
+| Demo switches `?delay` and `?fail` | A review aid to see the states above on the live site, not a product feature (see "API") |
 
 ### Colours: an open question for design
 
