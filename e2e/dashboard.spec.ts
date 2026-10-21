@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { chart, openDashboard, row } from './helpers';
+import { chart, openDashboard, row, tabTo } from './helpers';
 
 test('runs without console errors under the production CSP', async ({ page }) => {
   const errors: string[] = [];
@@ -39,20 +39,19 @@ test.describe('expand and collapse', () => {
     await expect(row(page, 'New paid')).toHaveCount(0);
   });
 
-  test('works from the keyboard alone', async ({ page, browserName }) => {
+  test('works from the keyboard alone', async ({ page }) => {
     await openDashboard(page);
 
     // Tab order: chart, its drillable legend entry, then a single stop in the table.
-    await page.keyboard.press('Tab');
-    await expect(chart(page)).toBeFocused();
-    // Safari leaves buttons out of the Tab order unless Full Keyboard Access is on,
-    // and Playwright's WebKit does the same.
-    if (browserName !== 'webkit') {
-      await page.keyboard.press('Tab');
-      await expect(page.getByRole('button', { name: 'Branch 1, show breakdown' })).toBeFocused();
-    }
-    await page.keyboard.press('Tab');
-    await expect(row(page, 'Company')).toBeFocused();
+    // Whether buttons are Tab stops depends on the platform, not the engine: Safari on
+    // macOS skips them unless Full Keyboard Access is on, WebKit on Linux does not. So
+    // walk the order and check every stop instead of hard-coding it per browser.
+    const stops = await tabTo(page, row(page, 'Company'));
+    expect(stops[0]).toBe('group: Clients per month for Company, by branch, Feb 2024 to Jan 2025');
+    expect(stops.slice(1, -1).every((stop) => stop === 'button: Branch 1, show breakdown')).toBe(
+      true
+    );
+    expect(stops.length).toBeLessThanOrEqual(3);
 
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('ArrowRight');
