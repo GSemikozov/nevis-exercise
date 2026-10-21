@@ -22,7 +22,8 @@ test('answers a missing asset with 404, not the app shell', async ({ request }) 
 test('keeps client data out of shared caches', async ({ request }) => {
   const res = await request.get('/api/v1/clients');
 
-  expect(res.headers()['cache-control']).toBe('private, max-age=60');
+  // Netlify normalises the header to "private,max-age=60"; compare without whitespace.
+  expect(res.headers()['cache-control']?.replace(/\s/g, '')).toBe('private,max-age=60');
   expect(res.headers()['cache-status'] ?? '').not.toMatch(/\bhit\b|stored/);
 });
 
