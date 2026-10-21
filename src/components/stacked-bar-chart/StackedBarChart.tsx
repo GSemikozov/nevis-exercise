@@ -260,13 +260,17 @@ function Columns({
             fill="var(--color-hover)"
           />
         )}
-        {/* Rounds the top of the whole stack; the bottom radius hides below the baseline. */}
+        {/*
+          Rounds the top of the whole stack; the bottom radius hides below the baseline.
+          Marks render at their final geometry (initial={false}) and only changes animate:
+          the animation runtime loads lazily, and a chart must never wait for it to show data.
+        */}
         <clipPath id={clip}>
           <m.rect
             x={column.x}
             width={column.width}
             rx={TOP_RADIUS}
-            initial={{ y: plotHeight, height: 0 }}
+            initial={false}
             animate={{ y: column.top, height: plotHeight - column.top + TOP_RADIUS }}
             transition={transition}
           />
@@ -282,7 +286,7 @@ function Columns({
                 x={column.x}
                 width={column.width}
                 fill={colorOf.get(segment.seriesId)}
-                initial={{ y: plotHeight, height: 0 }}
+                initial={false}
                 animate={{ y: segment.y, height: segment.height }}
                 transition={transition}
                 className={cn(activatable && 'cursor-pointer')}

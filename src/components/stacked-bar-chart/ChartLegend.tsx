@@ -45,11 +45,13 @@ export function ChartLegend({
               <button
                 type="button"
                 onClick={() => onActivate(s.id)}
+                // Explicit, so every browser computes the same name. It starts with the
+                // visible label, as WCAG 2.5.3 (Label in Name) asks for voice control.
+                aria-label={`${s.label}, ${activateHint}`}
                 className="inline-flex min-h-6 items-center gap-1 rounded-sm underline-offset-4 transition-colors duration-300 ease-figma hover:text-content hover:underline motion-reduce:transition-none"
               >
                 {swatch}
                 {s.label}
-                <span className="sr-only">, {activateHint}</span>
                 <ChevronRight aria-hidden="true" strokeWidth={1.5} className="size-3" />
               </button>
             ) : (
