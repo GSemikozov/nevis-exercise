@@ -1,4 +1,4 @@
-import { scaleBand, scaleLinear } from 'd3-scale';
+import { nice, ticks } from 'd3-array';
 
 export interface ChartSeries {
   id: string;
@@ -68,16 +68,15 @@ export function computeLayout({
   const indices = Array.from({ length: categoryCount }, (_, i) => i);
   const totals = indices.map((i) => series.reduce((sum, s) => sum + (s.values[i] ?? 0), 0));
 
-  // nice(4) rounds the top to a clean tick: 350 → 400 in steps of 100, as in the design.
-  const y = scaleLinear()
-    .domain([0, Math.max(1, ...totals)])
-    .range([height, 0])
-    .nice(4);
-  const x = scaleBand<number>()
-    .domain(indices)
-    .range([0, width])
-    .paddingInner(PADDING_INNER)
-    .paddingOuter(PADDING_OUTER);
+  // Round the top up to a clean tick, the way d3's linear scale does: 350 → 400 in steps
+  // of 100, as in the design. Only nice() and ticks() come from d3 (d3-array, ~2 KB).
+  const [, max = 1] = nice(0, Math.max(1, ...totals), 4);
+  const y = (value: number) => height - (value / max) * height;
+
+  // A band layout (as d3's scaleBand): outer padding at both ends, inner between columns.
+  const step = width / Math.max(1, categoryCount - PADDING_INNER + 2 * PADDING_OUTER);
+  const bandwidth = step * (1 - PADDING_INNER);
+  const x = (index: number) => step * PADDING_OUTER + index * step;
 
   const columns = indices.map((index): ColumnLayout => {
     const total = totals[index] ?? 0;
@@ -92,20 +91,12 @@ export function computeLayout({
       const gap = k === 0 ? 0 : segmentGap;
       return { seriesId: s.id, value, y: top, height: Math.max(0, bottom - top - gap) };
     });
-    return {
-      index,
-      x: x(index) ?? 0,
-      width: x.bandwidth(),
-      step: x.step(),
-      total,
-      top: y(total),
-      segments,
-    };
+    return { index, x: x(index), width: bandwidth, step, total, top: y(total), segments };
   });
 
   return {
     columns,
-    ticks: y.ticks(4).map((value) => ({ value, y: y(value) })),
-    max: y.domain()[1] ?? 0,
+    ticks: ticks(0, max, 4).map((value) => ({ value, y: y(value) })),
+    max,
   };
 }

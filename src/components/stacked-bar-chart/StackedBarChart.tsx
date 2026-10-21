@@ -1,6 +1,14 @@
 import { useReducedMotion } from 'motion/react';
 import * as m from 'motion/react-m';
-import { type FocusEvent, type KeyboardEvent, useId, useMemo, useState } from 'react';
+import {
+  type FocusEvent,
+  type KeyboardEvent,
+  type Ref,
+  useId,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from 'react';
 import { cn } from '@/lib/cn';
 import { figmaTransition } from '@/lib/motion';
 import { type ChartLayout, type ChartSeries, type ColumnLayout, computeLayout } from './layout';
@@ -30,6 +38,8 @@ interface StackedBarChartProps {
   onSeriesActivate?: (seriesId: string) => void;
   isSeriesActivatable?: (seriesId: string) => boolean;
   className?: string;
+  /** The focusable chart region, e.g. to return focus to it after a drill-down. */
+  ref?: Ref<HTMLDivElement | null>;
 }
 
 // Geometry from the design: 26px value labels + 12px gap, 10px above the plot so the
@@ -57,10 +67,17 @@ export function StackedBarChart({
   isSeriesActivatable = () => false,
   className,
   'aria-label': ariaLabel,
+  ref,
 }: StackedBarChartProps) {
   const [containerRef, measuredWidth] = useElementWidth<HTMLDivElement>();
+  useImperativeHandle<HTMLDivElement | null, HTMLDivElement | null>(
+    ref,
+    () => containerRef.current,
+    [containerRef]
+  );
   const width = fixedWidth ?? measuredWidth;
   const plotWidth = Math.max(0, width - PLOT_LEFT);
+  const svgHeight = PLOT_TOP + plotHeight + MONTH_LABEL_OFFSET + 8;
   const layout = useMemo(
     () =>
       computeLayout({
@@ -114,6 +131,9 @@ export function StackedBarChart({
       onFocus={onFocus}
       onBlur={() => setActive(null)}
       onPointerLeave={() => setActive((a) => (a?.via === 'pointer' ? null : a))}
+      // The height is reserved before the width is known, so nothing below the chart
+      // shifts once it measures itself (no layout shift, no stray row animations).
+      style={{ height: svgHeight }}
       className={cn('relative w-full rounded-card outline-offset-4', className)}
     >
       <p id={instructionsId} hidden>
@@ -123,7 +143,7 @@ export function StackedBarChart({
         <svg
           aria-hidden="true"
           width={width}
-          height={PLOT_TOP + plotHeight + MONTH_LABEL_OFFSET + 8}
+          height={svgHeight}
           className="block overflow-visible forced-color-adjust-none"
         >
           <ValueAxis layout={layout} plotWidth={plotWidth} formatValue={formatValue} />
