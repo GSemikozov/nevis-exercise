@@ -1,4 +1,4 @@
-import { type ChartSeries, computeLayout } from './layout';
+import { type ChartSeries, columnAt, computeLayout, placeTooltip } from './layout';
 
 // Company by branch, as served by the API (first three months).
 const series: ChartSeries[] = [
@@ -79,5 +79,62 @@ describe('computeLayout', () => {
 
     expect(empty.max).toBeGreaterThan(0);
     expect(empty.columns.every((c) => c.segments.length === 0)).toBe(true);
+  });
+});
+
+describe('columnAt', () => {
+  // 12 columns on 1338px: 111.5px steps, bars 87.5px wide starting at x = 12.
+  const layout = computeLayout({ categoryCount: 12, series: [], width: 1338, height: HEIGHT });
+
+  it('finds the column under the pointer, gaps included', () => {
+    expect(columnAt(layout, 12 + 40)).toBe(0); // on the first bar
+    expect(columnAt(layout, 0)).toBe(0); // left padding belongs to the first band
+    expect(columnAt(layout, 111.5 - 1)).toBe(0); // the gap's first half
+    expect(columnAt(layout, 111.5 + 1)).toBe(1); // the gap's second half
+    expect(columnAt(layout, 1337)).toBe(11);
+  });
+
+  it('returns null outside the plot', () => {
+    expect(columnAt(layout, -1)).toBeNull();
+    expect(columnAt(layout, 1339)).toBeNull();
+  });
+});
+
+describe('placeTooltip', () => {
+  const bounds = { top: 0, bottom: 330, width: 400 };
+  const size = { width: 150, height: 100 };
+
+  it('goes to the right of the column when it fits', () => {
+    expect(
+      placeTooltip({ columnLeft: 60, columnRight: 80, stackTop: 120, bounds, ...size })
+    ).toEqual({ left: 88, top: 120 });
+  });
+
+  it('goes to the left when the right side has no room', () => {
+    expect(
+      placeTooltip({ columnLeft: 300, columnRight: 320, stackTop: 120, bounds, ...size })
+    ).toEqual({ left: 142, top: 120 });
+  });
+
+  it('stays inside the chart vertically', () => {
+    expect(
+      placeTooltip({ columnLeft: 60, columnRight: 80, stackTop: 300, bounds, ...size }).top
+    ).toBe(230);
+    expect(
+      placeTooltip({ columnLeft: 60, columnRight: 80, stackTop: -20, bounds, ...size }).top
+    ).toBe(0);
+  });
+
+  it('is clamped into the chart when neither side fits', () => {
+    const narrow = { top: 0, bottom: 330, width: 260 };
+    const { left } = placeTooltip({
+      columnLeft: 120,
+      columnRight: 140,
+      stackTop: 50,
+      bounds: narrow,
+      ...size,
+    });
+    expect(left).toBeGreaterThanOrEqual(0);
+    expect(left + size.width).toBeLessThanOrEqual(narrow.width);
   });
 });

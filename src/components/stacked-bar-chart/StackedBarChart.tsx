@@ -3,15 +3,26 @@ import * as m from 'motion/react-m';
 import {
   type FocusEvent,
   type KeyboardEvent,
+  type PointerEvent,
   type Ref,
+  useEffect,
   useId,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { cn } from '@/lib/cn';
 import { figmaTransition } from '@/lib/motion';
-import { type ChartLayout, type ChartSeries, type ColumnLayout, computeLayout } from './layout';
+import {
+  type ChartLayout,
+  type ChartSeries,
+  type ColumnLayout,
+  columnAt,
+  computeLayout,
+  placeTooltip,
+} from './layout';
 import { useElementWidth } from './use-element-width';
 
 export interface ChartCategory {
@@ -50,7 +61,8 @@ const PLOT_TOP = 10;
 const MONTH_LABEL_OFFSET = 12 + 8;
 const TOP_RADIUS = 4;
 
-type Active = { index: number; via: 'pointer' | 'keyboard' };
+/** The month being read, and how it was chosen: a hovering mouse, a touch, or the keys. */
+type Active = { index: number; via: 'mouse' | 'touch' | 'keyboard' };
 
 /**
  * Stacked columns, one per category. The SVG is decorative for assistive technology:
@@ -90,10 +102,44 @@ export function StackedBarChart({
   );
   const [active, setActive] = useState<Active | null>(null);
   const instructionsId = useId();
+  // The pointer type of the last press, so a click knows whether it came from a finger.
+  const lastPointerType = useRef('mouse');
 
   const activeColumn = active ? layout.columns[active.index] : undefined;
   const activeCategory = active ? categories[active.index] : undefined;
   const last = categories.length - 1;
+
+  /*
+   * Pointer input is handled once for the whole chart, from the pointer's x position:
+   * per-column targets break on touch, where the browser keeps sending a finger's events
+   * to the element it first touched, so dragging across months would not move on.
+   */
+  const select = (event: PointerEvent<HTMLDivElement>, via: 'mouse' | 'touch') => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const index = columnAt(layout, event.clientX - bounds.left - PLOT_LEFT);
+    setActive((current) => {
+      if (index === null) return via === 'mouse' && current?.via === 'mouse' ? null : current;
+      // Same month: keep the same object, so moving within it does not re-render.
+      return current?.index === index && current.via === via ? current : { index, via };
+    });
+  };
+
+  // A touch selection stays until the user touches somewhere else.
+  useEffect(() => {
+    if (active?.via !== 'touch') return;
+    const dismiss = (event: globalThis.PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setActive(null);
+    };
+    document.addEventListener('pointerdown', dismiss);
+    return () => document.removeEventListener('pointerdown', dismiss);
+  }, [active?.via, containerRef]);
+
+  // On touch a tap reads the month; drilling stays with the legend buttons, which say so.
+  const activateSeries =
+    onSeriesActivate &&
+    ((seriesId: string) => {
+      if (lastPointerType.current === 'mouse') onSeriesActivate(seriesId);
+    });
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const current = active?.index ?? -1;
@@ -130,7 +176,18 @@ export function StackedBarChart({
       onKeyDown={onKeyDown}
       onFocus={onFocus}
       onBlur={() => setActive(null)}
-      onPointerLeave={() => setActive((a) => (a?.via === 'pointer' ? null : a))}
+      onPointerDown={(event) => {
+        lastPointerType.current = event.pointerType;
+        if (event.pointerType !== 'mouse') select(event, 'touch');
+      }}
+      onPointerMove={(event) => {
+        if (event.pointerType === 'mouse') select(event, 'mouse');
+        else if (event.buttons > 0) select(event, 'touch'); // a finger dragging across months
+      }}
+      onPointerLeave={(event) => {
+        // A finger "leaves" as it lifts; only a mouse moving away closes the tooltip.
+        if (event.pointerType === 'mouse') setActive((a) => (a?.via === 'mouse' ? null : a));
+      }}
       // The height is reserved before the width is known, so nothing below the chart
       // shifts once it measures itself (no layout shift, no stray row animations).
       style={{ height: svgHeight }}
@@ -144,7 +201,8 @@ export function StackedBarChart({
           aria-hidden="true"
           width={width}
           height={svgHeight}
-          className="block overflow-visible forced-color-adjust-none"
+          // pan-y: a vertical swipe still scrolls the page, a horizontal one reads months.
+          className="block touch-pan-y overflow-visible forced-color-adjust-none"
         >
           <ValueAxis layout={layout} plotWidth={plotWidth} formatValue={formatValue} />
           <g transform={`translate(${PLOT_LEFT} ${PLOT_TOP})`}>
@@ -153,16 +211,7 @@ export function StackedBarChart({
               series={series}
               plotHeight={plotHeight}
               activeIndex={active?.index}
-              onHover={(index) =>
-                // pointermove fires per pixel: keep the same state object (no re-render)
-                // while the pointer stays within one month.
-                setActive((current) =>
-                  current?.index === index && current.via === 'pointer'
-                    ? current
-                    : { index, via: 'pointer' }
-                )
-              }
-              onSeriesActivate={onSeriesActivate}
+              onSeriesActivate={activateSeries}
               isSeriesActivatable={isSeriesActivatable}
             />
           </g>
@@ -180,6 +229,7 @@ export function StackedBarChart({
           series={series}
           formatValue={formatValue}
           containerWidth={width}
+          plotBottom={PLOT_TOP + plotHeight}
         />
       )}
       <p className="sr-only" aria-live="polite">
@@ -231,7 +281,6 @@ function Columns({
   series,
   plotHeight,
   activeIndex,
-  onHover,
   onSeriesActivate,
   isSeriesActivatable,
 }: {
@@ -239,7 +288,6 @@ function Columns({
   series: readonly ChartSeries[];
   plotHeight: number;
   activeIndex: number | undefined;
-  onHover: (index: number) => void;
   onSeriesActivate?: (seriesId: string) => void;
   isSeriesActivatable: (seriesId: string) => boolean;
 }) {
@@ -251,14 +299,7 @@ function Columns({
   return layout.columns.map((column) => {
     const clip = `${clipId}-${column.index}`;
     return (
-      <g key={column.index} onPointerMove={() => onHover(column.index)} data-column={column.index}>
-        {/* Hover target: the whole band, taller than the bar, so it is easy to hit. */}
-        <rect
-          x={column.x - (column.step - column.width) / 2}
-          width={column.step}
-          height={plotHeight}
-          fill="transparent"
-        />
+      <g key={column.index} data-column={column.index}>
         {activeIndex === column.index && (
           <rect
             x={column.x - 4}
@@ -349,26 +390,46 @@ function ChartTooltip({
   series,
   formatValue,
   containerWidth,
+  plotBottom,
 }: {
   column: ColumnLayout;
   category: ChartCategory;
   series: readonly ChartSeries[];
   formatValue: (value: number) => string;
   containerWidth: number;
+  plotBottom: number;
 }) {
-  const center = PLOT_LEFT + column.x + column.width / 2;
-  // Keep the tooltip inside the chart near either edge.
-  const align = center < 120 ? 'start' : center > containerWidth - 120 ? 'end' : 'center';
-  const translateX = { start: '-1.5rem', center: '-50%', end: 'calc(-100% + 1.5rem)' }[align];
+  // Placement needs the tooltip's own size: measure it before paint, then place it.
+  const ref = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const next = { width: element.offsetWidth, height: element.offsetHeight };
+    setSize((current) =>
+      current?.width === next.width && current.height === next.height ? current : next
+    );
+  });
+  const position =
+    size &&
+    placeTooltip({
+      columnLeft: PLOT_LEFT + column.x,
+      columnRight: PLOT_LEFT + column.x + column.width,
+      stackTop: PLOT_TOP + column.top,
+      bounds: { top: 0, bottom: plotBottom, width: containerWidth },
+      width: size.width,
+      height: size.height,
+    });
 
   return (
     <div
+      ref={ref}
       aria-hidden="true"
-      className="pointer-events-none absolute z-20 min-w-44 rounded-card border border-line bg-surface px-3 py-2 text-footnote shadow-[0_4px_16px_rgb(20_20_19/0.08)]"
+      className="pointer-events-none absolute z-20 w-max rounded-card border border-line bg-surface px-3 py-2 text-footnote shadow-[0_4px_16px_rgb(20_20_19/0.08)]"
       style={{
-        left: center,
-        top: PLOT_TOP + column.top,
-        transform: `translate(${translateX}, calc(-100% - 0.5rem))`,
+        left: position?.left ?? 0,
+        top: position?.top ?? 0,
+        visibility: position ? 'visible' : 'hidden',
       }}
     >
       <p className="text-content-secondary">{category.label}</p>

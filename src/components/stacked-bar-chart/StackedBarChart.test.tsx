@@ -29,6 +29,19 @@ function renderChart(props: Partial<Parameters<typeof StackedBarChart>[0]> = {})
 }
 
 const columns = (container: HTMLElement) => [...container.querySelectorAll('[data-column]')];
+const group = () => screen.getByRole('group', { name: 'Clients per month by branch' });
+
+/** Page x of a column's centre. jsdom has no layout, so the chart's left edge is 0. */
+function columnCentre(container: HTMLElement, index: number) {
+  const bar = container.querySelector(`[data-column="${index}"] [data-series]`);
+  const x = Number(bar?.getAttribute('x'));
+  const width = Number(bar?.getAttribute('width'));
+  return 38 + x + width / 2; // 38px: the value axis left of the plot
+}
+
+const queryTooltip = () =>
+  screen.queryByText(/^\w{3} 2024$/, { selector: 'p' })?.parentElement ?? null;
+const tooltipFor = (month: string) => screen.getByText(month, { selector: 'p' }).parentElement;
 const segments = (column: Element) =>
   [...column.querySelectorAll('[data-series]')].map((s) => [
     s.getAttribute('data-series'),
@@ -113,13 +126,52 @@ describe('StackedBarChart: reading values', () => {
 
   it('shows a tooltip with every series and the total on hover', () => {
     const { container } = renderChart();
-    const column = container.querySelector('[data-column="1"]');
-    if (!column) throw new Error('column not rendered');
 
-    fireEvent.pointerMove(column);
-    const tooltip = screen.getByText('Mar 2024', { selector: 'p' }).parentElement;
+    fireEvent.pointerMove(group(), { pointerType: 'mouse', clientX: columnCentre(container, 1) });
+    const tooltip = tooltipFor('Mar 2024');
     expect(tooltip).toHaveTextContent('Branch 3' + '30');
     expect(tooltip).toHaveTextContent('Total' + '267');
+
+    fireEvent.pointerLeave(group(), { pointerType: 'mouse' });
+    expect(queryTooltip()).not.toBeInTheDocument();
+  });
+});
+
+describe('StackedBarChart on touch screens', () => {
+  it('reads a month on tap instead of drilling, and keeps it after the finger lifts', () => {
+    const onSeriesActivate = vi.fn();
+    const { container } = renderChart({ onSeriesActivate, isSeriesActivatable: () => true });
+    const segment = container.querySelector('[data-column="0"] [data-series="b1"]');
+    if (!segment) throw new Error('segment not rendered');
+
+    fireEvent.pointerDown(group(), { pointerType: 'touch', clientX: columnCentre(container, 0) });
+    fireEvent.pointerLeave(group(), { pointerType: 'touch' });
+    fireEvent.click(segment);
+
+    expect(tooltipFor('Feb 2024')).toBeInTheDocument();
+    expect(onSeriesActivate).not.toHaveBeenCalled();
+  });
+
+  it('follows a finger dragged across months', () => {
+    const { container } = renderChart();
+
+    fireEvent.pointerDown(group(), { pointerType: 'touch', clientX: columnCentre(container, 0) });
+    fireEvent.pointerMove(group(), {
+      pointerType: 'touch',
+      buttons: 1,
+      clientX: columnCentre(container, 2),
+    });
+
+    expect(tooltipFor('Apr 2024')).toBeInTheDocument();
+  });
+
+  it('closes when the user touches outside the chart', () => {
+    const { container } = renderChart();
+    fireEvent.pointerDown(group(), { pointerType: 'touch', clientX: columnCentre(container, 1) });
+    expect(tooltipFor('Mar 2024')).toBeInTheDocument();
+
+    fireEvent.pointerDown(document.body, { pointerType: 'touch' });
+    expect(queryTooltip()).not.toBeInTheDocument();
   });
 });
 

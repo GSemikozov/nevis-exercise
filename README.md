@@ -53,6 +53,7 @@ E2E_BASE_URL=https://nevis-exercise.netlify.app npm run test:e2e
 
 - **Table:** a WAI-ARIA treegrid. Every row carries `aria-level`, `aria-posinset`, `aria-setsize`, and `aria-expanded` when it has children, so a screen reader announces e.g. "Branch 1, not expanded, level 2, 1 of 3". One tab stop; arrow keys move between rows and cells, Right/Left expand, collapse or go to the parent, Enter/Space toggle, Home/End jump.
 - **Chart:** the SVG is hidden from assistive technology. The chart region is one tab stop named after its scope ("Clients per month for Company, by branch, Feb 2024 to Jan 2025"); arrow keys step through months, each read out through a live region and shown in a tooltip. Drilling is available as legend buttons. The table is the full text alternative.
+- **Chart on touch screens:** there is no hover, so a tap reads a month (a horizontal drag moves along months, a vertical swipe still scrolls) and the tooltip stays until you touch elsewhere. A tap never drills, so reading a value cannot accidentally change the view; drilling stays on the legend buttons, which show it with a chevron. The tooltip sits beside the selected column, never over it, and inside the chart.
 - **Motion:** honours "reduce motion" (no sliding, opacity only). **Contrast:** text passes AA; see "Colours" below for the chart. **Forced colours:** focus uses outlines, which survive Windows High Contrast.
 
 ## Deployment

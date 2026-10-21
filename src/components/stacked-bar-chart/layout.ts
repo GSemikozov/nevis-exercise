@@ -100,3 +100,51 @@ export function computeLayout({
     max,
   };
 }
+
+/**
+ * The column under a horizontal plot position, or null outside every column. Each column
+ * owns its whole band step (the bar plus half the gap on either side), so the pointer
+ * never falls between two months.
+ */
+export function columnAt(layout: ChartLayout, x: number): number | null {
+  const first = layout.columns[0];
+  if (!first) return null;
+  const start = first.x - (first.step - first.width) / 2;
+  const index = Math.floor((x - start) / first.step);
+  return index >= 0 && index < layout.columns.length ? index : null;
+}
+
+interface TooltipPlacementInput {
+  /** The selected column's left and right edges and stack top, in container pixels. */
+  columnLeft: number;
+  columnRight: number;
+  stackTop: number;
+  /** The area the tooltip must stay inside, in container pixels. */
+  bounds: { top: number; bottom: number; width: number };
+  /** The tooltip's measured size. */
+  width: number;
+  height: number;
+  gap?: number;
+}
+
+/**
+ * Where the tooltip goes: beside the selected column, on whichever side has room (right
+ * first), so it never covers the column it describes; level with the top of the stack,
+ * kept inside the chart. If neither side fits (very narrow screens), it is clamped into
+ * the chart horizontally.
+ */
+export function placeTooltip({
+  columnLeft,
+  columnRight,
+  stackTop,
+  bounds,
+  width,
+  height,
+  gap = 8,
+}: TooltipPlacementInput): { left: number; top: number } {
+  const top = Math.max(bounds.top, Math.min(stackTop, bounds.bottom - height));
+  if (columnRight + gap + width <= bounds.width) return { left: columnRight + gap, top };
+  if (columnLeft - gap - width >= 0) return { left: columnLeft - gap - width, top };
+  const centred = (columnLeft + columnRight) / 2 - width / 2;
+  return { left: Math.max(0, Math.min(centred, bounds.width - width)), top };
+}

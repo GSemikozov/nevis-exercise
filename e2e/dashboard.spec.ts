@@ -115,6 +115,40 @@ test.describe('chart', () => {
   });
 });
 
+test.describe('chart on a touch screen', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test('a tap reads the month beside its column, without drilling; a tap elsewhere closes it', async ({
+    page,
+  }) => {
+    await openDashboard(page);
+
+    for (const index of [0, 6, 11]) {
+      const bar = await page
+        .locator(`[data-column="${index}"] [data-series]`)
+        .first()
+        .boundingBox();
+      if (!bar) throw new Error('bar not rendered');
+      await page.touchscreen.tap(bar.x + bar.width / 2, bar.y + bar.height / 2);
+
+      const tooltip = page.locator('div[aria-hidden="true"]', { has: page.locator('ul') });
+      const box = await tooltip.boundingBox();
+      const chartBox = await chart(page).boundingBox();
+      if (!box || !chartBox) throw new Error('tooltip not shown');
+      // Beside the column, never over it, and inside the chart.
+      expect(box.x + box.width <= bar.x || box.x >= bar.x + bar.width).toBe(true);
+      expect(box.x).toBeGreaterThanOrEqual(chartBox.x - 1);
+      expect(box.x + box.width).toBeLessThanOrEqual(chartBox.x + chartBox.width + 1);
+      await expect(chart(page)).toHaveAccessibleName(/^Clients per month for Company/);
+    }
+
+    await page.touchscreen.tap(20, 20);
+    await expect(page.locator('div[aria-hidden="true"]', { has: page.locator('ul') })).toHaveCount(
+      0
+    );
+  });
+});
+
 test.describe('loading and errors against the real API', () => {
   test('shows a skeleton while the data loads', async ({ page }) => {
     await page.goto('/?delay=1500');
