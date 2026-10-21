@@ -1,5 +1,9 @@
 # Nevis Clients Dashboard
 
+[![Netlify Status](https://api.netlify.com/api/v1/badges/bc1ad488-2c7e-4dbb-9940-ddeb6d9257df/deploy-status)](https://app.netlify.com/projects/nevis-exercise/deploys)
+
+**Live:** https://nevis-exercise.netlify.app · loading state: [`?delay=2000`](https://nevis-exercise.netlify.app/?delay=2000) · error state: [`?fail=503`](https://nevis-exercise.netlify.app/?fail=503) · API: [`/api/clients`](https://nevis-exercise.netlify.app/api/clients)
+
 A dashboard over the client book of business: a stacked bar chart of clients per month and a table that drills from the whole company down to a branch, an advisor and an acquisition channel. The data is served by a small Node.js REST API.
 
 ![The dashboard at 1440px with Branch 1 and Anna Blackwood expanded](docs/screenshot.png)
@@ -37,7 +41,11 @@ Try `http://localhost:3000/?delay=2000` for the loading state and `?fail=503` fo
 | WCAG 2.2 AA rules in every UI state | axe-core in Playwright | `e2e/a11y.spec.ts` |
 | Manual screen reader and zoom checks | Checklist | [`docs/a11y-testing.md`](docs/a11y-testing.md) |
 
-CI (GitHub Actions) runs lint, types, unit tests and the build, and the end-to-end suite in a second job.
+CI (GitHub Actions) runs lint, types, unit tests and the build, and the end-to-end suite in a second job. The same suite runs against a deployment as a smoke test:
+
+```bash
+E2E_BASE_URL=https://nevis-exercise.netlify.app npm run test:e2e
+```
 
 ## Accessibility
 

@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
-import { openDashboard, row } from './helpers';
+import { openDashboard, row, waitForAnimations } from './helpers';
 
 /*
  * Automated WCAG 2.2 AA checks with axe-core in real browsers, in every state that
@@ -11,6 +11,7 @@ import { openDashboard, row } from './helpers';
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
 async function expectNoViolations(page: Page) {
+  await waitForAnimations(page);
   const { violations } = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
   expect(
     violations.map(({ id, help, nodes }) => ({ id, help, targets: nodes.map((n) => n.target) }))

@@ -3,6 +3,9 @@ import { defineConfig, devices } from '@playwright/test';
 // A port of its own, so the e2e run never collides with `npm run dev` on 3000/3001.
 const PORT = 4173;
 const isCI = Boolean(process.env.CI);
+// Point the suite at a deployed site instead, e.g.
+// E2E_BASE_URL=https://nevis-exercise.netlify.app npm run test:e2e
+const remoteBaseURL = process.env.E2E_BASE_URL;
 
 export default defineConfig({
   testDir: './e2e',
@@ -11,7 +14,7 @@ export default defineConfig({
   retries: isCI ? 1 : 0,
   reporter: isCI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
-    baseURL: `http://localhost:${PORT}`,
+    baseURL: remoteBaseURL ?? `http://localhost:${PORT}`,
     trace: 'on-first-retry',
   },
   projects: [
@@ -25,11 +28,13 @@ export default defineConfig({
     },
   ],
   // The production build, served by the same Node process as the API (as in `npm start`).
-  webServer: {
-    command: 'npm run build && node server/main.ts --serve-static',
-    url: `http://localhost:${PORT}/api/health`,
-    env: { PORT: String(PORT) },
-    reuseExistingServer: !isCI,
-    timeout: 120_000,
-  },
+  webServer: remoteBaseURL
+    ? undefined
+    : {
+        command: 'npm run build && node server/main.ts --serve-static',
+        url: `http://localhost:${PORT}/api/health`,
+        env: { PORT: String(PORT) },
+        reuseExistingServer: !isCI,
+        timeout: 120_000,
+      },
 });
