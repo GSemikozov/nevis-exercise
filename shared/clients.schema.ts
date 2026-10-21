@@ -1,7 +1,7 @@
 import * as z from 'zod/mini';
 
 /** Where the client tree is served. Versioned, so the contract can change without
- * breaking clients (or meeting their cached responses) on the old path. */
+ * breaking existing clients. */
 export const CLIENTS_ENDPOINT = '/api/v1/clients';
 
 /*

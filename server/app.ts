@@ -66,7 +66,11 @@ export function createApp({
     if (delay !== undefined) {
       c.header('Cache-Control', 'no-store');
     } else {
-      c.header('Cache-Control', 'public, max-age=60, stale-while-revalidate=600');
+      // private: client data belongs to the signed-in advisor in a real product, so no
+      // shared cache (CDN) may keep it. The browser still reuses it for a minute and then
+      // revalidates with the ETag. It also keeps the CDN from answering an origin error
+      // with a stale copy, which is what Netlify does with cached responses.
+      c.header('Cache-Control', 'private, max-age=60');
       c.header('ETag', etag);
       if (matchesEtag(c.req.header('If-None-Match'), etag)) return c.body(null, 304);
     }

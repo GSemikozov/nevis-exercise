@@ -9,7 +9,7 @@ describe('GET /api/v1/clients', () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('application/json');
-    expect(res.headers.get('cache-control')).toContain('max-age=60');
+    expect(res.headers.get('cache-control')).toBe('private, max-age=60');
     const body = clientsResponseSchema.parse(await res.json());
     expect(body.meta.periodStart).toBe('2024-02');
     expect(body.data.name).toBe('Company');
@@ -25,7 +25,7 @@ describe('GET /api/v1/clients', () => {
     });
     expect(second.status).toBe(304);
     expect(second.headers.get('etag')).toBe(tag);
-    expect(second.headers.get('cache-control')).toContain('max-age=60');
+    expect(second.headers.get('cache-control')).toBe('private, max-age=60');
   });
 
   it('matches weak and listed entity tags too', async () => {
@@ -41,7 +41,7 @@ describe('GET /api/v1/clients', () => {
     const res = await production.request('/api/v1/clients?fail=503&delay=3000');
 
     expect(res.status).toBe(200);
-    expect(res.headers.get('cache-control')).toContain('max-age=60');
+    expect(res.headers.get('cache-control')).toBe('private, max-age=60');
   });
 
   it('simulates a failure with ?fail as an uncached problem document', async () => {
