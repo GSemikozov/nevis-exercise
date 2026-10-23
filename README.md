@@ -179,7 +179,7 @@ Neighbouring pairs do separate well for colour-blind readers (ΔE ≥ 16), so th
 
 - What do the values measure: client count, or something like assets under management? It changes the chart (stacked counts vs. a share of a total) and the number format.
 - Why do most series drop sharply from August to September 2024 and stay flat until December? If the mock is placeholder data, fine; if not, it looks like missing data rather than a real trend.
-- Should drilling the chart and expanding the table be linked both ways? Here the chart drives the table but not the reverse (see "What the chart stacks").
+- Is an explicit link from table to chart the right one? Here drilling the chart expands the table, while a table row reaches the chart only through its "Show in chart" button; the alternative is that expanding a row moves the chart too (see "What the chart stacks").
 - Where do advisor photos come from, if the design's avatars are meant to be real?
 
 ## What I would do next
