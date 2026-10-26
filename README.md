@@ -143,7 +143,7 @@ So the chart shows **one scope at a time, stacked by the level beneath it**: the
 
 - **Avatars:** the design shows photos, but the API has no image URLs, so advisors get initials. They are decorative (`aria-hidden`); the name next to them carries the meaning.
 - **Default state:** as in the design, the company starts expanded with its branches showing, and the chart starts at company level.
-- **Branch 2 and Branch 3** show chevrons in the design; they have no employees, so here they have no chevron and are not announced as expandable.
+- **Chevrons:** the design gives every branch and every advisor one. Here only rows with a level beneath get a chevron (Company, Branch 1, Anna Blackwood): Branch 2 and 3 have no advisors and the other advisors have no channel data, so a chevron would promise rows that do not exist. Those rows are not announced as expandable either.
 
 ### Additions to the design
 
