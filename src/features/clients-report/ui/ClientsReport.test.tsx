@@ -139,6 +139,18 @@ describe('ClientsReport', () => {
     expect(row('Branch 1')).toHaveAttribute('aria-expanded', 'true');
   });
 
+  it('names the chart after its new scope by the time it gets focus', async () => {
+    // A screen reader announces the name at the focus change; a later rename may go unheard.
+    const { user } = await renderLoaded();
+    const namesOnFocus: (string | null)[] = [];
+    chart().addEventListener('focus', (event) =>
+      namesOnFocus.push((event.currentTarget as HTMLElement).getAttribute('aria-label'))
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Show Branch 1 in chart' }));
+    expect(namesOnFocus).toEqual([expect.stringMatching(/^Clients per month for Branch 1,/)]);
+  });
+
   it('reaches "Show in chart" from the keyboard without toggling the row', async () => {
     const { user } = await renderLoaded();
     row('Branch 1').focus();

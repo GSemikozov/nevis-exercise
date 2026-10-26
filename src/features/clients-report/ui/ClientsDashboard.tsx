@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { parentMap, pathTo } from '@/components/tree-grid/flatten';
 import { type ClientsReport, getChildren, getId, indexNodes } from '../model/report';
 import { ClientsChartCard } from './ClientsChartCard';
@@ -32,8 +33,12 @@ export function ClientsDashboard({ report }: { report: ClientsReport }) {
   const path = pathTo(scope.id, parents).flatMap((id) => nodes.get(id) ?? []);
 
   const showInChart = (id: string) => {
-    setScopeId(id);
-    setExpandedIds((current) => new Set([...current, ...pathTo(id, parents)]));
+    // Commit first, so the chart already carries the new scope's name when it gets focus:
+    // screen readers announce the name at the focus change and may miss a later rename.
+    flushSync(() => {
+      setScopeId(id);
+      setExpandedIds((current) => new Set([...current, ...pathTo(id, parents)]));
+    });
     // Focus also scrolls the chart into view, e.g. from a row far down the table.
     chartRef.current?.focus();
   };
