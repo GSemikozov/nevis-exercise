@@ -77,6 +77,9 @@
 
   --radius-card: 0.5rem;
 
+  /* Not in the design (it has no overlays); the chart tooltip's lift, in the same ink. */
+  --shadow-overlay: 0 4px 16px rgb(var(--ink) / 0.08);
+
   /* Figma's "Ease out" preset. Tailwind's own ease-out is a different curve. */
   --ease-figma: cubic-bezier(0, 0, 0.58, 1);
 }

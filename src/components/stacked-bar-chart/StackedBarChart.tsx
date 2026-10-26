@@ -425,7 +425,7 @@ function ChartTooltip({
     <div
       ref={ref}
       aria-hidden="true"
-      className="pointer-events-none absolute z-20 w-max rounded-card border border-line bg-surface px-3 py-2 text-footnote shadow-[0_4px_16px_rgb(20_20_19/0.08)]"
+      className="pointer-events-none absolute z-20 w-max rounded-card border border-line bg-surface px-3 py-2 text-footnote shadow-overlay"
       style={{
         left: position?.left ?? 0,
         top: position?.top ?? 0,
