@@ -2,6 +2,10 @@
 @import "@fontsource/inter/400.css";
 @import "./tokens.css";
 
+/* Tailwind skips what the project's .gitignore lists, not a contributor's global ignore;
+   local tool settings would otherwise add classes that production builds do not have. */
+@source not "../../.claude";
+
 @layer base {
   body {
     @apply bg-page font-sans text-body text-content antialiased;
