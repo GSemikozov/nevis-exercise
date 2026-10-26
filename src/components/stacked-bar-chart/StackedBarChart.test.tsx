@@ -131,6 +131,8 @@ describe('StackedBarChart: reading values', () => {
     const tooltip = tooltipFor('Mar 2024');
     expect(tooltip).toHaveTextContent('Branch 3' + '30');
     expect(tooltip).toHaveTextContent('Total' + '267');
+    // Passing over months with a mouse is not read out.
+    expect(screen.queryByText(/in total\./)).not.toBeInTheDocument();
 
     fireEvent.pointerLeave(group(), { pointerType: 'mouse' });
     expect(queryTooltip()).not.toBeInTheDocument();
@@ -149,6 +151,8 @@ describe('StackedBarChart on touch screens', () => {
     fireEvent.click(segment);
 
     expect(tooltipFor('Feb 2024')).toBeInTheDocument();
+    // The tooltip is hidden from assistive technology; the tapped month is read out instead.
+    expect(screen.getByText(/^February 2024: 223 in total\./)).toBeInTheDocument();
     expect(onSeriesActivate).not.toHaveBeenCalled();
   });
 

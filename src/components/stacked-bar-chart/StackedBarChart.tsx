@@ -232,8 +232,10 @@ export function StackedBarChart({
           plotBottom={PLOT_TOP + plotHeight}
         />
       )}
+      {/* Keys and taps pick a month on purpose, so it is read out; a mouse merely passing
+          over the columns would turn into a stream of announcements. */}
       <p className="sr-only" aria-live="polite">
-        {active?.via === 'keyboard' && activeColumn && activeCategory
+        {active && active.via !== 'mouse' && activeColumn && activeCategory
           ? describeColumn(activeCategory, activeColumn, series, formatValue)
           : ''}
       </p>
@@ -457,6 +459,11 @@ function ChartTooltip({
   );
 }
 
+/**
+ * A month as read out. Series come in data order, as in the legend and the table a
+ * screen reader user moves through; the tooltip lists them top of the stack first instead,
+ * matching what a sighted reader sees beside it.
+ */
 export function describeColumn(
   category: ChartCategory,
   column: ColumnLayout,
