@@ -107,7 +107,7 @@ Each entry records what was chosen, what else was considered and why.
 | Design tokens | Two layers: semantic CSS variables named after the Figma variables (`--background-primary`, `--content-secondary`, …), mapped to Tailwind with `@theme inline` | Hard-coded Tailwind palette, shadcn token names | Design and code share one vocabulary; a theme is one block of variables. Only the light theme exists in the design, so only that ships |
 | Fonts | Fontsource (self-hosted Inter 400) + `fontaine` (metric-matched fallback) + a 20-line Vite plugin that preloads the latin file | Google Fonts, `unplugin-fonts`, the variable font | Vite's equivalent of `next/font`: no third-party request, one preloaded 24 KB file, no layout shift on swap. The title's Inter Display cut is approximated with Inter's own tracking for 35px instead of a second file (the variable font with optical sizes is 73 KB) |
 | Focus | 2px `outline` in the ink colour | Tailwind `ring` (box-shadow) | Outlines survive Windows High Contrast; box-shadows are removed there |
-| Virtualization | Not yet | TanStack Virtual | The row model is already a flat list, so it can be added once real data volumes are known |
+| Virtualization | None | TanStack Virtual | Only worth it for a very large dataset, which this is not; the row model is already a flat list, so it can be added if real data turns out that large |
 | Code splitting | The dashboard (tree grid, chart, animation runtime) is a lazy chunk whose download starts when the app loads, in parallel with the data request; motion's animation features load asynchronously | One bundle | Initial JS is 107 KB gzip (React + React DOM alone are ~74 KB); the 13 KB dashboard chunk and 32 KB of animation features are off the critical path without adding a request waterfall. A failed chunk load is retried once; a chunk that disappeared with a new deploy triggers one reload (at most once a minute) to pick up the new build |
 | Roving focus | Focus position in a small external store read with `useSyncExternalStore`; rows measure layout only when the set of rows changes (`layoutDependency`) | React state in the grid | An arrow key re-renders the two elements trading the tab stop, not every row, and triggers no layout measurement |
 
@@ -184,7 +184,7 @@ Neighbouring pairs do separate well for colour-blind readers (ΔE ≥ 16), so th
 ## What I would do next
 
 - **Run the manual screen reader pass** in [`docs/a11y-testing.md`](docs/a11y-testing.md) with VoiceOver and NVDA, and ideally with screen reader users.
-- **Virtualize the table** with TanStack Virtual once real data volumes are known. The row model is already a flat list; the row animations would move from layout animation to animating within the virtualizer's positioning.
+- **Virtualize the table, but only if real data proves large** (thousands of visible rows, not a few dozen). Until then it adds complexity and works against the row animations for no gain. If it is needed, TanStack Virtual fits: the row model is already a flat list, and the row animations would move from layout animation to animating within the virtualizer's positioning.
 - **Load the tree lazily** for large organisations: fetch a node's children when it is expanded (`GET /api/v1/clients/:id/children`), with TanStack Query caching each level.
 - **Put the view in the URL** (scope and expanded rows), so a drilled-down view can be shared and survives a reload.
 - **Table features:** a total column, sorting by month, and a sticky header for long tables.
