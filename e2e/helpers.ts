@@ -35,7 +35,7 @@ export async function openDashboard(page: Page, path = '/') {
 }
 
 /**
- * Waits until rows have finished fading and sliding. Checks that read rendered colours
+ * Waits until rows have finished opening and fading in. Checks that read rendered colours
  * (axe's contrast rule) would otherwise see half-transparent text mid-animation, which
  * shows up on slower machines such as CI runners.
  */
@@ -43,10 +43,11 @@ export async function waitForAnimations(page: Page) {
   await page.waitForFunction(() => {
     const running = document.getAnimations().some((a) => a.playState === 'running');
     const rows = [...document.querySelectorAll<HTMLElement>('[role="row"]')];
-    const settled = rows.every((r) => {
-      const style = getComputedStyle(r);
-      return style.opacity === '1' && style.transform === 'none';
-    });
+    // Every row, the header included, has the same height once nothing is opening.
+    const height = rows[0]?.getBoundingClientRect().height;
+    const settled = rows.every(
+      (r) => getComputedStyle(r).opacity === '1' && r.getBoundingClientRect().height === height
+    );
     return !running && settled;
   });
 }
