@@ -84,7 +84,10 @@ export function TreeGrid<T>({
       <div
         {...grid.getGridProps()}
         aria-describedby={instructionsId}
-        className={cn('w-full min-w-max', className)}
+        // At least the sum of the columns' minimums, never the widest visible row: with
+        // max-content, opening a row with longer content widened the columns and shifted
+        // every cell. Below this width the container scrolls sideways.
+        className={cn('w-full min-w-min', className)}
         style={gridStyle}
         {...props}
       >

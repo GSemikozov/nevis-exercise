@@ -109,6 +109,25 @@ test.describe('expand and collapse', () => {
     expect(inBetween.length, trace).toBeGreaterThan(0);
   });
 
+  test.describe('on a screen narrower than the table', () => {
+    test.use({ viewport: { width: 1024, height: 768 } });
+
+    test('opening rows never changes the column widths', async ({ page }) => {
+      await openDashboard(page);
+      const columnWidths = () =>
+        page
+          .getByRole('columnheader')
+          .evaluateAll((cells) => cells.map((cell) => cell.getBoundingClientRect().width));
+      const closed = await columnWidths();
+
+      // An advisor row (indent, avatar, name, button) is the widest content in the table.
+      await row(page, 'Branch 1').click();
+      await row(page, 'Anna Blackwood').click();
+      await expect(row(page, 'New paid')).toHaveCSS('height', '56px');
+      expect(await columnWidths()).toEqual(closed);
+    });
+  });
+
   test.describe('with reduced motion', () => {
     test.use({ reducedMotion: 'reduce' });
 
