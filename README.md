@@ -109,7 +109,7 @@ Each entry records what was chosen, what else was considered and why.
 | Focus | 2px `outline` in the ink colour | Tailwind `ring` (box-shadow) | Outlines survive Windows High Contrast; box-shadows are removed there |
 | Virtualization | None | TanStack Virtual | Only worth it for a very large dataset, which this is not; the row model is already a flat list, so it can be added if real data turns out that large |
 | Code splitting | The dashboard (tree grid, chart, animation runtime) is a lazy chunk whose download starts when the app loads, in parallel with the data request; motion's animation features load asynchronously | One bundle | Initial JS is 107 KB gzip (React + React DOM alone are ~74 KB); the 13 KB dashboard chunk and 18 KB of animation features are off the critical path without adding a request waterfall. A failed chunk load is retried once; a chunk that disappeared with a new deploy triggers one reload (at most once a minute) to pick up the new build |
-| Roving focus | Focus position in a small external store read with `useSyncExternalStore` | React state in the grid | An arrow key re-renders the two elements trading the tab stop, not every row |
+| Roving focus | Focus position in a small external store read with `useSyncExternalStore` | React state in the grid | An arrow key re-renders the two elements trading the tab stop, not every row. No difference at this report's size, but the grid is generic: at 200 rows an arrow key took under 16ms instead of 64ms (Chromium, 4× slower CPU) |
 
 Bundle sizes above are gzip deltas over React + React DOM, measured with Vite production builds of minimal usage of each library.
 

@@ -87,8 +87,9 @@ export function useTreeGrid<T>({
   /*
    * Roving focus. Where the user last was lives in a small store outside React state, so
    * moving focus re-renders only the element losing the tab stop and the one gaining it
-   * (see useTabIndex), not every row: rows are layout-animated, so each re-render would
-   * also cost a layout measurement.
+   * (see useTabIndex), not every row and cell. A dozen rows would not notice the
+   * difference; a large tree does: at 200 rows, an arrow key took 64ms with the whole grid
+   * re-rendering and under 16ms with the store (Chromium, 4x slower CPU).
    */
   const [focusStore] = useState(createFocusStore);
   const gridRef = useRef<HTMLElement | null>(null);
