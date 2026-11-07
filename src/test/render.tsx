@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { type RenderOptions, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { domMax, LazyMotion, MotionConfig } from 'motion/react';
+import { domAnimation, LazyMotion, MotionConfig } from 'motion/react';
 import type { ReactElement, ReactNode } from 'react';
 
 /**
@@ -14,7 +14,7 @@ export function renderWithProviders(ui: ReactElement, options?: Omit<RenderOptio
   function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <LazyMotion features={domMax} strict>
+        <LazyMotion features={domAnimation} strict>
           <MotionConfig reducedMotion="user">{children}</MotionConfig>
         </LazyMotion>
       </QueryClientProvider>

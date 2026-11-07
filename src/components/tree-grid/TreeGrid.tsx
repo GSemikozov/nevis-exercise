@@ -1,12 +1,11 @@
 import { ChevronRight } from 'lucide-react';
-import { AnimatePresence, useIsPresent } from 'motion/react';
+import { AnimatePresence, useIsPresent, useReducedMotion } from 'motion/react';
 import * as m from 'motion/react-m';
 import {
   type ComponentProps,
   type CSSProperties,
   createContext,
   type ReactNode,
-  type Ref,
   use,
   useId,
   useSyncExternalStore,
@@ -18,11 +17,12 @@ import { ROW_FOCUS, type TreeGridApi, useTabIndex } from './use-tree-grid';
 
 /*
  * Presentational treegrid built on useTreeGrid. Markup is div-based with ARIA roles
- * rather than <table>: rows animate in and out (motion's popLayout takes a leaving row
- * out of flow), which table rows cannot do. Every row lays out its cells with the same
- * `columns` template, so columns line up without a shared table layout.
+ * rather than <table>: rows open and close by animating their height, which table rows
+ * cannot do (a <tr> ignores a height below its content and cannot clip it). Every row
+ * lays out its cells with the same `columns` template, so columns line up without a
+ * shared table layout.
  *
- * Needs a motion LazyMotion provider with `domMax` (layout animations) above it.
+ * Needs a motion LazyMotion provider above it.
  */
 
 // biome-ignore lint/suspicious/noExplicitAny: the context is shared by grids of any item type
@@ -41,7 +41,9 @@ function useRow() {
   return row;
 }
 
-const rowLayout = 'grid grid-cols-(--tree-grid-columns) items-center gap-x-4 h-14 pr-6';
+/** Figma's row height: 56px at the default font size. Body rows animate to it. */
+const ROW_HEIGHT = '3.5rem';
+const rowLayout = 'grid grid-cols-(--tree-grid-columns) items-center gap-x-4 pr-6';
 const rowHeaderLayout = 'sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-4';
 
 type LabelProps = { 'aria-label': string } | { 'aria-labelledby': string };
@@ -82,7 +84,10 @@ export function TreeGrid<T>({
       <div
         {...grid.getGridProps()}
         aria-describedby={instructionsId}
-        className={cn('w-full min-w-max', className)}
+        // At least the sum of the columns' minimums, never the widest visible row: with
+        // max-content, opening a row with longer content widened the columns and shifted
+        // every cell. Below this width the container scrolls sideways.
+        className={cn('w-full min-w-min', className)}
         style={gridStyle}
         {...props}
       >
@@ -105,7 +110,11 @@ export function TreeGridHeader({ className, children, ...props }: ComponentProps
     <div role="rowgroup" {...props}>
       {/* biome-ignore lint/a11y/useSemanticElements: div rows are needed for row animations */}
       {/* biome-ignore lint/a11y/useFocusableInteractive: header row is not a focus stop */}
-      <div role="row" className={cn(rowLayout, 'border-b border-line bg-surface', className)}>
+      <div
+        role="row"
+        className={cn(rowLayout, 'border-b border-line bg-surface', className)}
+        style={{ height: ROW_HEIGHT }}
+      >
         {children}
       </div>
     </div>
@@ -135,12 +144,9 @@ export function TreeGridCornerHeader({ className, ...props }: ComponentProps<'di
 
 export function TreeGridBody({ className, children, ...props }: ComponentProps<'div'>) {
   return (
-    // `relative`: popLayout positions leaving rows absolutely against this element.
     // biome-ignore lint/a11y/useSemanticElements: div rows are needed for row animations
-    <div role="rowgroup" className={cn('relative', className)} {...props}>
-      <AnimatePresence mode="popLayout" initial={false}>
-        {children}
-      </AnimatePresence>
+    <div role="rowgroup" className={className} {...props}>
+      <AnimatePresence initial={false}>{children}</AnimatePresence>
     </div>
   );
 }
@@ -149,46 +155,49 @@ type TreeGridRowProps<T> = {
   row: TreeGridRowModel<T>;
   className?: string;
   children: ReactNode;
-  /** Forwarded by AnimatePresence's popLayout to measure the row as it leaves. */
-  ref?: Ref<HTMLDivElement>;
 };
 
 /**
  * A body row. Rows with children toggle on click (Figma: "On click → Change to Opened").
- * Hover and the expand animation use the Figma timing: 300ms, ease-out.
+ *
+ * Rows open and close by height, in normal flow, with the Figma timing (300ms, ease-out):
+ * the rows below, the table and the page all resize together, frame by frame. Sliding
+ * rows with transforms alone (FLIP) leaves the table's and the page's height to change in
+ * one frame, and collapsing near the bottom of the page then clamps the scroll position
+ * and jolts everything above the table. Animating height costs a layout per frame, which
+ * a table of this size affords; a large table would want virtualization anyway.
  */
-export function TreeGridRow<T>({ row, className, children, ref }: TreeGridRowProps<T>) {
+export function TreeGridRow<T>({ row, className, children }: TreeGridRowProps<T>) {
   const grid = useGrid();
   const isPresent = useIsPresent();
+  const reduceMotion = useReducedMotion();
   const tabIndex = useTabIndex(grid, row.id, ROW_FOCUS);
-  const { ref: registerRef, ...rowProps } = grid.getRowProps(row);
+  const { ref, ...rowProps } = grid.getRowProps(row);
 
   return (
     <RowContext value={row as TreeGridRowModel<unknown>}>
       <m.div
         {...rowProps}
         tabIndex={tabIndex}
-        ref={(element: HTMLDivElement | null) => {
-          registerRef(element);
-          if (typeof ref === 'function') ref(element);
-          else if (ref) ref.current = element;
-        }}
-        // A leaving row stays in the DOM while it fades; keep it away from AT and focus.
+        ref={ref}
+        // A leaving row stays in the DOM while it closes; keep it away from AT and focus.
         aria-hidden={isPresent ? undefined : true}
         inert={!isPresent}
-        layout="position"
-        // Measure layout only when the set of rows changes, not on every re-render (a
-        // focus move re-renders a row without moving anything).
-        layoutDependency={grid.rows}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={figmaTransition}
+        // Reduced motion: rows take or give up their place at once, so nothing slides; a
+        // new row only fades in.
+        initial={{ height: reduceMotion ? ROW_HEIGHT : 0, opacity: 0 }}
+        animate={{ height: ROW_HEIGHT, opacity: 1 }}
+        exit={{ height: 0, opacity: 0 }}
+        transition={
+          reduceMotion ? { ...figmaTransition, height: { duration: 0 } } : figmaTransition
+        }
         data-level={row.level}
         data-expanded={row.hasChildren ? row.isExpanded : undefined}
         className={cn(
           rowLayout,
-          'group border-b border-line bg-surface outline-offset-[-2px]',
+          // `clip`, not `hidden`: it cuts the content of a half-open row without making the
+          // row a scroll container, which would break the sticky name column.
+          'group overflow-y-clip border-b border-line bg-surface outline-offset-[-2px]',
           'transition-colors duration-300 ease-figma hover:bg-hover-opaque motion-reduce:transition-none',
           row.hasChildren && 'cursor-pointer',
           className

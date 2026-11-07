@@ -9,7 +9,7 @@ test('runs without console errors under the production CSP', async ({ page }) =>
   page.on('pageerror', (error) => errors.push(error.message));
 
   await openDashboard(page);
-  // Exercise the animations, including the popLayout style injection on collapse.
+  // Exercise the expand and collapse animations, which write inline styles.
   await row(page, 'Branch 1').click();
   await expect(row(page, 'Anna Blackwood')).toBeVisible();
   await row(page, 'Branch 1').click();
@@ -27,9 +27,9 @@ test.describe('expand and collapse', () => {
 
     await row(page, 'Branch 1').click();
     await expect(row(page, 'Branch 1')).toHaveAttribute('aria-expanded', 'true');
-    // The fade-in finishes and the rows below settle where they belong.
+    // The new row opens to its full height and fades in.
+    await expect(row(page, 'Anna Blackwood')).toHaveCSS('height', '56px');
     await expect(row(page, 'Anna Blackwood')).toHaveCSS('opacity', '1');
-    await expect(row(page, 'Branch 2')).toHaveCSS('transform', 'none');
 
     await row(page, 'Anna Blackwood').click();
     await expect(row(page, 'New paid')).toBeVisible();
@@ -69,15 +69,88 @@ test.describe('expand and collapse', () => {
     await expect(row(page, 'Anna Blackwood')).toHaveCount(0);
   });
 
+  test('collapsing near the bottom of the page moves the content smoothly, not in one jump', async ({
+    page,
+  }) => {
+    await openDashboard(page);
+    await row(page, 'Branch 1').click();
+    await row(page, 'Anna Blackwood').click();
+    await expect(row(page, 'New paid')).toHaveCSS('height', '56px');
+    // Scrolled to the bottom, a shorter page pulls everything above the table down.
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+
+    // Where the chart is on every frame after the click, and when.
+    const samples = await page.evaluate(async () => {
+      const chart = document.querySelector('[role="group"][aria-label^="Clients per month"]');
+      const branch = document.querySelector('[role="rowheader"][aria-label="Branch 1"]');
+      if (!chart || !(branch instanceof HTMLElement)) throw new Error('dashboard not rendered');
+      const frames = [{ t: 0, top: chart.getBoundingClientRect().top }];
+      const start = performance.now();
+      branch.click();
+      await new Promise<void>((resolve) => {
+        const sample = (now: number) => {
+          frames.push({ t: now - start, top: chart.getBoundingClientRect().top });
+          if (now - start < 700) requestAnimationFrame(sample);
+          else resolve();
+        };
+        requestAnimationFrame(sample);
+      });
+      return frames;
+    });
+
+    const trace = samples.map((s) => `${Math.round(s.t)}ms:${Math.round(s.top)}`).join(' ');
+    const from = samples[0]?.top ?? 0;
+    const to = samples.at(-1)?.top ?? 0;
+    const inBetween = samples.filter((s) => (s.top - from) * (s.top - to) < 0);
+    expect(Math.abs(to - from), trace).toBeGreaterThan(200);
+    // A jump goes from the old position to the new one in a single frame. An animation
+    // passes through positions in between, even when a busy CI machine draws only a few
+    // long frames (one run in a loaded Linux container drew frames 250ms apart).
+    expect(inBetween.length, trace).toBeGreaterThan(0);
+  });
+
+  test.describe('on a screen narrower than the table', () => {
+    test.use({ viewport: { width: 1024, height: 768 } });
+
+    test('opening rows never changes the column widths', async ({ page }) => {
+      await openDashboard(page);
+      const columnWidths = () =>
+        page
+          .getByRole('columnheader')
+          .evaluateAll((cells) => cells.map((cell) => cell.getBoundingClientRect().width));
+      const closed = await columnWidths();
+
+      // An advisor row (indent, avatar, name, button) is the widest content in the table.
+      await row(page, 'Branch 1').click();
+      await row(page, 'Anna Blackwood').click();
+      await expect(row(page, 'New paid')).toHaveCSS('height', '56px');
+      expect(await columnWidths()).toEqual(closed);
+    });
+  });
+
   test.describe('with reduced motion', () => {
     test.use({ reducedMotion: 'reduce' });
 
-    test('rows appear in place without sliding', async ({ page }) => {
+    test('rows take their place at once instead of sliding', async ({ page }) => {
       await openDashboard(page);
       await row(page, 'Branch 1').click();
 
-      await expect(row(page, 'Anna Blackwood')).toBeVisible();
-      await expect(row(page, 'Branch 2')).toHaveCSS('transform', 'none');
+      // Full height in the first frame the new row is drawn; only its fade remains.
+      const firstHeight = await page.evaluate(
+        () =>
+          new Promise<number>((resolve) => {
+            const sample = () => {
+              const name = document.querySelector(
+                '[role="rowheader"][aria-label="Anna Blackwood"]'
+              );
+              const anna = name?.closest('[role="row"]');
+              if (anna) resolve(anna.getBoundingClientRect().height);
+              else requestAnimationFrame(sample);
+            };
+            sample();
+          })
+      );
+      expect(firstHeight).toBe(56);
     });
   });
 });
