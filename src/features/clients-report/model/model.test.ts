@@ -1,7 +1,8 @@
 import type { ClientsResponse } from '@shared/clients.schema';
+import { indexById } from '@/lib/tree';
 import clients from '../../../../server/data/clients.json';
 import { chartSeriesFor } from './chart-series';
-import { indexNodes, type ReportNode, toReport } from './report';
+import { getChildren, getId, type ReportNode, toReport } from './report';
 
 const response: ClientsResponse = { data: clients, meta: { periodStart: '2024-02' } };
 const report = toReport(response);
@@ -43,8 +44,8 @@ describe('toReport', () => {
     expect(node('James Walker').children).toEqual([]);
   });
 
-  it('indexes every node by id', () => {
-    const nodes = indexNodes(report.root);
+  it('reads as a tree through getId and getChildren', () => {
+    const nodes = indexById([report.root], { getId, getChildren });
     const anna = node('Anna Blackwood');
 
     expect(nodes.size).toBe(12);

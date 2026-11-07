@@ -69,7 +69,7 @@ src/
   app/         entry, providers, page shell
   features/    clients-report: data fetching, pure model transforms, feature UI
   components/  generic, domain-agnostic building blocks: tree grid, stacked bar chart, UI primitives
-  lib/         formatting, motion tokens, utilities
+  lib/         formatting, motion tokens, tree helpers, utilities
   styles/      design tokens and global CSS
 ```
 

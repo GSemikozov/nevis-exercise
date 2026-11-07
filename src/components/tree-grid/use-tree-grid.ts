@@ -9,7 +9,8 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
-import { flattenVisible, parentMap, type TreeAccessors, type TreeGridRowModel } from './flatten';
+import { parentMap, type TreeAccessors } from '@/lib/tree';
+import { flattenVisible, type TreeGridRowModel } from './flatten';
 
 /** Where keyboard focus sits: a whole row (`col` = -1) or one of its cells. */
 interface FocusPosition {
