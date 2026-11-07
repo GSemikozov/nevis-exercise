@@ -1,4 +1,4 @@
-import { flattenVisible, parentMap, pathTo } from './flatten';
+import { flattenVisible } from './flatten';
 
 interface Node {
   id: string;
@@ -60,19 +60,5 @@ describe('flattenVisible', () => {
       hasChildren: false,
       isExpanded: false,
     });
-  });
-});
-
-describe('parentMap / pathTo', () => {
-  const parents = parentMap(tree, accessors);
-
-  it('maps every node to its parent', () => {
-    expect(parents.get('company')).toBeNull();
-    expect(parents.get('ch2')).toBe('e1');
-  });
-
-  it('returns the path from the root', () => {
-    expect(pathTo('ch2', parents)).toEqual(['company', 'b1', 'e1', 'ch2']);
-    expect(pathTo('unknown', parents)).toEqual([]);
   });
 });

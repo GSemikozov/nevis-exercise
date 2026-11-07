@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { parentMap, pathTo } from '@/components/tree-grid/flatten';
-import { type ClientsReport, getChildren, getId, indexNodes } from '../model/report';
+import { indexById, parentMap, pathTo } from '@/lib/tree';
+import { type ClientsReport, getChildren, getId } from '../model/report';
 import { ClientsChartCard } from './ClientsChartCard';
 import { ClientsTableCard } from './ClientsTableCard';
 
@@ -18,11 +18,11 @@ import { ClientsTableCard } from './ClientsTableCard';
  */
 export function ClientsDashboard({ report }: { report: ClientsReport }) {
   const { root, months } = report;
-  // One walk of the tree per data change; every lookup below is then O(1).
-  const { parents, nodes } = useMemo(
-    () => ({ parents: parentMap([root], { getId, getChildren }), nodes: indexNodes(root) }),
-    [root]
-  );
+  // Indexed once per data change, so every lookup below is O(1).
+  const { parents, nodes } = useMemo(() => {
+    const tree = { getId, getChildren };
+    return { parents: parentMap([root], tree), nodes: indexById([root], tree) };
+  }, [root]);
   // As in the design, the company starts expanded with its branches showing.
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() => new Set([root.id]));
   const [scopeId, setScopeId] = useState(root.id);

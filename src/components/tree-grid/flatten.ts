@@ -1,7 +1,4 @@
-export interface TreeAccessors<T> {
-  getId: (item: T) => string;
-  getChildren: (item: T) => readonly T[];
-}
+import type { TreeAccessors } from '@/lib/tree';
 
 /** A visible row of the tree, with everything ARIA needs to describe its place in it. */
 export interface TreeGridRowModel<T> {
@@ -51,32 +48,4 @@ export function flattenVisible<T>(
 
   visit(roots, 1, null);
   return rows;
-}
-
-/** Parent of every node in the tree, visible or not; roots map to `null`. */
-export function parentMap<T>(
-  roots: readonly T[],
-  { getId, getChildren }: TreeAccessors<T>
-): Map<string, string | null> {
-  const parents = new Map<string, string | null>();
-  const visit = (items: readonly T[], parentId: string | null) => {
-    for (const item of items) {
-      const id = getId(item);
-      parents.set(id, parentId);
-      visit(getChildren(item), id);
-    }
-  };
-  visit(roots, null);
-  return parents;
-}
-
-/** Ids of `id` and its ancestors, root first. */
-export function pathTo(id: string, parents: ReadonlyMap<string, string | null>): string[] {
-  const path: string[] = [];
-  let current: string | null | undefined = id;
-  while (current != null && parents.has(current)) {
-    path.unshift(current);
-    current = parents.get(current);
-  }
-  return path;
 }
