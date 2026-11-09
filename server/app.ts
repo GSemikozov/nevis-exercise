@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { type Context, Hono } from 'hono';
+import { STATUS_CODES } from 'node:http';
+import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { logger } from 'hono/logger';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
@@ -31,6 +32,19 @@ const demoParamsSchema = z.object({
     z.coerce.number().check(z.refine(Number.isInteger), z.minimum(400), z.maximum(599))
   ),
 });
+
+/** A problem type of this API's own, beyond what an HTTP status already says. */
+interface ProblemType {
+  /** A tag URI (RFC 4151): a stable identifier that needs no documentation page behind it. */
+  type: string;
+  title: string;
+}
+
+/** What `?fail` answers with: a failure the reviewer asked for, not a real outage. */
+const SIMULATED_FAILURE: ProblemType = {
+  type: 'tag:nevis-exercise.netlify.app,2026:simulated-failure',
+  title: 'Simulated failure',
+};
 
 interface AppOptions {
   clients?: ClientsResponse;
@@ -76,22 +90,27 @@ export function createApp({
     api.get(routeOf(DEMO_CLIENTS_ENDPOINT), async (c) => {
       const { delay, fail } = parseDemoParams(c.req.query());
       if (delay) await sleep(delay);
-      if (fail) throw problem(fail as ContentfulStatusCode, 'Simulated failure', `?fail=${fail}`);
+      if (fail) {
+        throw problem(fail as ContentfulStatusCode, {
+          type: SIMULATED_FAILURE,
+          detail: `Requested with ?fail=${fail}`,
+        });
+      }
       c.header('Cache-Control', 'no-store');
       return c.body(body, 200, { 'Content-Type': 'application/json' });
     });
   }
 
   api.all('*', (c) => {
-    throw problem(404, 'Not Found', `No API route for ${c.req.method} ${c.req.path}`);
+    throw problem(404, { detail: `No API route for ${c.req.method} ${c.req.path}` });
   });
 
   app.route('/api', api);
 
-  app.onError((error, c) => {
+  app.onError((error) => {
     if (error instanceof HTTPException) return error.getResponse();
     console.error(error);
-    return problemResponse(c, 500, 'Internal Server Error');
+    return problem(500).getResponse();
   });
 
   return app;
@@ -108,9 +127,7 @@ function defaultClients(): ClientsResponse {
 
 function parseDemoParams(query: Record<string, string>) {
   const parsed = demoParamsSchema.safeParse(query);
-  if (!parsed.success) {
-    throw problem(400, 'Invalid query parameters', z.prettifyError(parsed.error));
-  }
+  if (!parsed.success) throw problem(400, { detail: z.prettifyError(parsed.error) });
   return parsed.data;
 }
 
@@ -123,21 +140,27 @@ function matchesEtag(header: string | undefined, etag: string) {
     .some((tag) => tag === etag || tag === '*');
 }
 
-/** Errors use RFC 9457 problem details, so clients get one predictable shape. */
-function problem(status: ContentfulStatusCode, title: string, detail?: string) {
-  const body = JSON.stringify({ type: 'about:blank', title, status, detail });
+/**
+ * Errors use RFC 9457 problem details, so clients get one predictable shape. A plain HTTP
+ * error has the type "about:blank", whose title the RFC asks to be the status phrase
+ * ("Bad Request"); what went wrong this time goes in `detail`. A problem type of our own
+ * brings its own type URI and title.
+ */
+function problem(
+  status: ContentfulStatusCode,
+  { type, detail }: { type?: ProblemType; detail?: string } = {}
+) {
+  const body = JSON.stringify({
+    type: type?.type ?? 'about:blank',
+    title: type?.title ?? STATUS_CODES[status],
+    status,
+    detail,
+  });
   return new HTTPException(status, {
     res: new Response(body, {
       status,
       headers: { 'Content-Type': 'application/problem+json', 'Cache-Control': 'no-store' },
     }),
-  });
-}
-
-function problemResponse(c: Context, status: ContentfulStatusCode, title: string) {
-  c.header('Cache-Control', 'no-store');
-  return c.body(JSON.stringify({ type: 'about:blank', title, status }), status, {
-    'Content-Type': 'application/problem+json',
   });
 }
 

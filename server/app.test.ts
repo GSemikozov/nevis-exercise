@@ -66,7 +66,13 @@ describe('GET /api/v1/demo/clients', () => {
     expect(res.status).toBe(503);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
     expect(res.headers.get('cache-control')).toBe('no-store');
-    expect(await res.json()).toMatchObject({ status: 503, title: 'Simulated failure' });
+    // A problem type of its own, so a client can tell it from a real outage.
+    expect(await res.json()).toEqual({
+      type: 'tag:nevis-exercise.netlify.app,2026:simulated-failure',
+      title: 'Simulated failure',
+      status: 503,
+      detail: 'Requested with ?fail=503',
+    });
   });
 
   it('holds the response for ?delay milliseconds and does not cache it', async () => {
@@ -86,7 +92,13 @@ describe('GET /api/v1/demo/clients', () => {
     const res = await app.request(`/api/v1/demo/clients${query}`);
 
     expect(res.status).toBe(400);
-    expect(await res.json()).toMatchObject({ status: 400, title: 'Invalid query parameters' });
+    // A plain HTTP error: the status phrase as title (RFC 9457), the specifics in detail.
+    expect(await res.json()).toMatchObject({
+      type: 'about:blank',
+      title: 'Bad Request',
+      status: 400,
+      detail: expect.any(String),
+    });
   });
 });
 
@@ -101,6 +113,32 @@ describe('API routing', () => {
 
     expect(res.status).toBe(404);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
+    expect(await res.json()).toEqual({
+      type: 'about:blank',
+      title: 'Not Found',
+      status: 404,
+      detail: 'No API route for GET /api/nope',
+    });
+  });
+
+  it('answers an unexpected error with a bare 500 problem, logging but never exposing it', async () => {
+    const failing = createApp();
+    failing.get('/boom', () => {
+      throw new Error('database password is hunter2');
+    });
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const res = await failing.request('/boom');
+
+    expect(res.status).toBe(500);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    expect(await res.json()).toEqual({
+      type: 'about:blank',
+      title: 'Internal Server Error',
+      status: 500,
+    });
+    expect(log).toHaveBeenCalled();
+    log.mockRestore();
   });
 });
 
