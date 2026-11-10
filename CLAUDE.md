@@ -26,7 +26,7 @@ Node 22 (`nvm use`).
 - `src/app/` — entry, providers, page shell
 - `src/features/clients-report/` — the dashboard feature: `api/`, `model/` (pure transforms), `ui/`
 - `src/components/` — generic, domain-agnostic components (`tree-grid/`, `stacked-bar-chart/`, `ui/`)
-- `src/lib/` — `cn()`, Intl formatters, motion tokens
+- `src/lib/` — `cn()`, Intl formatters, motion tokens, tree helpers (`tree.ts`: `indexById`, `parentMap`, `pathTo` over any tree via `getId`/`getChildren`). Code that more than one layer needs and that knows nothing about the domain lives here.
 - `src/styles/` — design tokens (Figma variables → semantic tokens) and global CSS
 - `src/test/` — `setup.ts` (jest-dom matchers, jsdom stubs: ResizeObserver, scrollIntoView, `<dialog>`), `api-mock.ts` (MSW: `setupMockApi`, `apiServer`), `render.tsx` (`renderWithProviders`)
 - `e2e/` — Playwright specs and `helpers.ts` (`row`, `chart`, `openDashboard`, `tabTo`, `waitForAnimations`); `docs/` — manual accessibility checklist

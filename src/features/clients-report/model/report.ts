@@ -69,14 +69,3 @@ export const childLevelLabel: Record<NodeKind, string> = {
 
 export const getId = (node: ReportNode) => node.id;
 export const getChildren = (node: ReportNode) => node.children;
-
-/** Every node of the tree by id, built in one walk. */
-export function indexNodes(root: ReportNode): Map<string, ReportNode> {
-  const nodes = new Map<string, ReportNode>();
-  const visit = (node: ReportNode) => {
-    nodes.set(node.id, node);
-    node.children.forEach(visit);
-  };
-  visit(root);
-  return nodes;
-}
