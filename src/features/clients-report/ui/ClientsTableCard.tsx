@@ -19,11 +19,13 @@ import { formatCount } from '@/lib/format';
 import { getChildren, getId, type Month, type ReportNode } from '../model/report';
 
 /*
- * Design: a 264px name column and 76px month columns at 1440px. The name column takes the
- * leftover space and the months shrink to 56px before the card scrolls sideways (with the
- * name column pinned).
+ * Design: a 264px name column and 76px month columns at 1440px. Months keep the design's
+ * width (narrower, "Feb 2024" wraps); the name column takes the leftover space, and below
+ * its minimum the card scrolls sideways with the name column pinned. Column widths never
+ * depend on which rows are open, so that minimum fits the widest row: an advisor's
+ * indent, avatar, name and "Show in chart" button. Longer names are truncated.
  */
-const COLUMNS = 'minmax(15rem, 1fr) repeat(12, minmax(3.5rem, 4.75rem))';
+const COLUMNS = 'minmax(17rem, 1fr) repeat(12, 4.75rem)';
 
 interface ClientsTableCardProps {
   root: ReportNode;
@@ -58,7 +60,7 @@ export function ClientsTableCard({
     <section
       aria-labelledby={headingId}
       // scroll-padding keeps a focused cell clear of the pinned name column.
-      className="min-w-0 overflow-x-auto rounded-card bg-surface scroll-pl-60"
+      className="min-w-0 overflow-x-auto rounded-card bg-surface scroll-pl-68"
     >
       <h2 id={headingId} className="sr-only">
         Clients per month by branch, advisor and acquisition channel
